@@ -5,31 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Skanepa Bakery</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,900&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
-    --bg:#FBF3E3;
+    --bg:#F3F5F8;
     --surface:#FFFFFF;
-    --ink:#2B1B12;
-    --ink-soft:#6B5A4C;
-    --crust:#A8481D;
-    --crust-dark:#7F3413;
-    --wheat:#D9A441;
-    --wheat-soft:#F1DDA8;
-    --sage:#55694A;
-    --sage-soft:#E1E9D6;
-    --line:#EADFC8;
-    --danger:#B33A3A;
-    --radius:16px;
+    --ink:#1E2A38;
+    --ink-soft:#66748A;
+    --primary:#2F5D8A;
+    --primary-dark:#1F3F5E;
+    --primary-tint:#EAF1F8;
+    --positive:#1F7A54;
+    --positive-bg:#E6F4EC;
+    --danger:#B3261E;
+    --danger-bg:#FBEAE9;
+    --line:#E1E6EC;
+    --radius:14px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
     background:var(--bg);
     color:var(--ink);
-    font-family:'Work Sans',sans-serif;
+    font-family:'Inter',sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
   }
@@ -44,35 +44,29 @@
     padding-bottom:78px;
   }
   .topbar{
-    padding:22px 20px 16px;
-    background:linear-gradient(180deg,#3A2214 0%,#2B1B12 100%);
-    color:#F6EAD4;
+    padding:20px 20px 16px;
+    background:var(--primary-dark);
+    color:#F4F7FA;
     position:sticky;
     top:0;
     z-index:20;
   }
-  .topbar .brand{
-    display:flex;
-    align-items:baseline;
-    gap:8px;
-  }
   .topbar .brand-mark{
-    font-family:'Fraunces',serif;
-    font-weight:900;
-    font-size:23px;
-    letter-spacing:0.3px;
+    font-weight:800;
+    font-size:20px;
+    letter-spacing:0.2px;
   }
   .topbar .brand-sub{
     font-family:'IBM Plex Mono',monospace;
-    font-size:10.5px;
-    letter-spacing:2px;
+    font-size:10px;
+    letter-spacing:1.6px;
     text-transform:uppercase;
-    color:var(--wheat);
-    margin-top:2px;
+    color:#9FB6CC;
+    margin-top:3px;
   }
   main{flex:1;padding:18px 16px 12px;}
   .view{display:none;}
-  .view.active{display:block;animation:fadeIn .25s ease;}
+  .view.active{display:block;animation:fadeIn .2s ease;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
   .card{
@@ -83,11 +77,10 @@
     margin-bottom:14px;
   }
   .card h3{
-    font-family:'Fraunces',serif;
-    font-size:14.5px;
+    font-size:12.5px;
     font-weight:700;
     margin:0 0 12px;
-    color:var(--crust-dark);
+    color:var(--primary-dark);
     text-transform:uppercase;
     letter-spacing:0.6px;
   }
@@ -101,54 +94,48 @@
   input[type=text],input[type=number],input[type=date],select{
     width:100%;
     padding:11px 12px;
-    border-radius:10px;
+    border-radius:9px;
     border:1.5px solid var(--line);
-    background:#FFFEFB;
-    font-family:'Work Sans',sans-serif;
+    background:#FCFDFE;
+    font-family:'Inter',sans-serif;
     font-size:15px;
     color:var(--ink);
     margin-bottom:12px;
   }
-  input:focus,select:focus{outline:2px solid var(--wheat);border-color:var(--wheat);}
+  input:focus,select:focus{outline:2px solid var(--primary);border-color:var(--primary);}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .row2 > div > label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
   .admin-name-display{
-    font-family:'Fraunces',serif;
-    font-weight:900;
-    font-size:26px;
-    color:var(--crust-dark);
+    font-weight:800;
+    font-size:24px;
+    color:var(--primary-dark);
     text-align:center;
-    padding:6px 0 2px;
+    padding:8px 0 4px;
   }
   .admin-name-display.placeholder{
-    font-family:'Work Sans',sans-serif;
     font-weight:500;
     font-size:14px;
     color:var(--ink-soft);
   }
 
   .receipt{
-    background:var(--crust);
-    color:#FFF7EA;
+    background:var(--primary);
+    color:#FFFFFF;
     border-radius:var(--radius);
-    padding:18px 18px 16px;
+    padding:18px;
     margin-bottom:16px;
-    position:relative;
-    clip-path:polygon(0% 0%,100% 0%,100% 92%,96% 100%,92% 92%,88% 100%,84% 92%,80% 100%,76% 92%,72% 100%,68% 92%,64% 100%,60% 92%,56% 100%,52% 92%,48% 100%,44% 92%,40% 100%,36% 92%,32% 100%,28% 92%,24% 100%,20% 92%,16% 100%,12% 92%,8% 100%,4% 92%,0% 100%);
-    padding-bottom:26px;
   }
   .receipt .rlabel{
     font-family:'IBM Plex Mono',monospace;
-    font-size:11px;
-    letter-spacing:1.5px;
+    font-size:10.5px;
+    letter-spacing:1.4px;
     text-transform:uppercase;
     opacity:0.85;
   }
   .receipt .ramount{
     font-family:'IBM Plex Mono',monospace;
     font-weight:600;
-    font-size:30px;
+    font-size:29px;
     margin-top:4px;
   }
 
@@ -157,7 +144,7 @@
     justify-content:space-between;
     align-items:center;
     padding:8px 0;
-    border-bottom:1px dashed var(--line);
+    border-bottom:1px solid var(--line);
     font-size:13.5px;
   }
   .breakdown-line:last-child{border-bottom:none;}
@@ -170,57 +157,72 @@
   .bl-minus .bl-val{color:var(--danger);}
   .bl-minus .bl-val::before{content:"- ";}
 
+  .staff-pay-row{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:8px;
+  }
+  .staff-pay-row:last-child{margin-bottom:0;}
+  .staff-pay-row .sp-name{font-weight:700;font-size:14px;}
+  .staff-pay-row .sp-role{
+    font-size:10.5px;
+    color:var(--primary);
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    margin-left:6px;
+  }
+  .staff-pay-row .sp-nums{
+    display:flex;
+    justify-content:space-between;
+    margin-top:6px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+
   .laba-box{
-    background:var(--sage-soft);
-    border:1.5px solid var(--sage);
+    background:var(--positive-bg);
+    border:1.5px solid var(--positive);
     border-radius:var(--radius);
     padding:18px;
     text-align:center;
     margin-top:14px;
   }
   .laba-box .ll{
-    font-family:'Fraunces',serif;
-    font-weight:900;
-    font-size:15px;
+    font-weight:800;
+    font-size:13px;
     letter-spacing:2px;
-    color:var(--sage);
+    color:var(--positive);
   }
   .laba-box .lv{
     font-family:'IBM Plex Mono',monospace;
     font-weight:700;
-    font-size:28px;
+    font-size:27px;
     color:var(--ink);
     margin-top:4px;
   }
 
   button{
-    font-family:'Work Sans',sans-serif;
+    font-family:'Inter',sans-serif;
     font-weight:600;
     cursor:pointer;
     border:none;
   }
   .btn-primary{
     width:100%;
-    background:var(--crust);
-    color:#FFF7EA;
+    background:var(--primary);
+    color:#FFFFFF;
     padding:14px;
-    border-radius:12px;
+    border-radius:11px;
     font-size:15px;
     margin-top:6px;
   }
-  .btn-primary:active{background:var(--crust-dark);}
-  .btn-secondary{
-    width:100%;
-    background:var(--surface);
-    color:var(--crust-dark);
-    border:1.5px solid var(--crust);
-    padding:12px;
-    border-radius:12px;
-    font-size:14px;
-  }
+  .btn-primary:active{background:var(--primary-dark);}
   .btn-small{
-    background:var(--wheat-soft);
-    color:var(--crust-dark);
+    background:var(--primary-tint);
+    color:var(--primary-dark);
     padding:8px 12px;
     border-radius:8px;
     font-size:13px;
@@ -242,35 +244,21 @@
     font-size:14px;
   }
   .list-item:last-child{border-bottom:none;}
-  .tag{
-    display:inline-block;
-    font-size:10.5px;
-    font-weight:700;
-    padding:2px 8px;
-    border-radius:20px;
-    margin-left:6px;
-    text-transform:uppercase;
-    letter-spacing:0.5px;
-  }
-  .tag.inti{background:var(--wheat-soft);color:var(--crust-dark);}
-  .tag.helper{background:var(--sage-soft);color:var(--sage);}
 
   .add-row{display:flex;gap:8px;}
   .add-row input{margin-bottom:0;flex:1;}
-  .add-row select{margin-bottom:0;width:110px;flex:none;}
 
   .empty-state{
     text-align:center;
-    padding:36px 10px;
+    padding:30px 10px;
     color:var(--ink-soft);
     font-size:13.5px;
   }
-  .empty-state .em-icon{font-size:34px;display:block;margin-bottom:8px;}
 
   .riwayat-card{
     background:var(--surface);
     border:1px solid var(--line);
-    border-left:4px solid var(--wheat);
+    border-left:4px solid var(--primary);
     border-radius:12px;
     padding:12px 14px;
     margin-bottom:10px;
@@ -281,7 +269,7 @@
   .riwayat-card .rw-laba{
     font-family:'IBM Plex Mono',monospace;
     font-weight:700;
-    color:var(--sage);
+    color:var(--positive);
     font-size:15px;
     margin-top:4px;
   }
@@ -289,12 +277,12 @@
   .riwayat-card .rw-actions button{flex:1;padding:7px;font-size:12px;border-radius:8px;}
 
   .notice{
-    background:var(--wheat-soft);
-    border:1px solid var(--wheat);
+    background:var(--primary-tint);
+    border:1px solid #C7D9EA;
     border-radius:10px;
     padding:10px 12px;
     font-size:11.5px;
-    color:var(--crust-dark);
+    color:var(--primary-dark);
     margin-bottom:14px;
     line-height:1.5;
   }
@@ -304,11 +292,11 @@
     bottom:0;left:50%;transform:translateX(-50%);
     width:100%;
     max-width:480px;
-    background:#FFFDF8;
+    background:#FFFFFF;
     border-top:1px solid var(--line);
     display:flex;
     z-index:30;
-    box-shadow:0 -4px 14px rgba(43,27,18,0.06);
+    box-shadow:0 -4px 14px rgba(30,42,56,0.06);
   }
   .bottom-nav button{
     flex:1;
@@ -321,20 +309,24 @@
     color:var(--ink-soft);
     font-size:11px;
   }
-  .bottom-nav button .nav-ic{font-size:19px;}
-  .bottom-nav button.active{color:var(--crust);}
+  .bottom-nav button .nav-ic{
+    width:18px;height:18px;
+    border-radius:5px;
+    border:2px solid currentColor;
+    display:inline-block;
+  }
+  .bottom-nav button.active{color:var(--primary);}
 
   h2.section-title{
-    font-family:'Fraunces',serif;
-    font-size:19px;
-    font-weight:700;
+    font-size:18px;
+    font-weight:800;
     margin:4px 0 14px;
     color:var(--ink);
   }
   .divider-label{
     font-family:'IBM Plex Mono',monospace;
     font-size:10.5px;
-    letter-spacing:1.5px;
+    letter-spacing:1.4px;
     text-transform:uppercase;
     color:var(--ink-soft);
     margin:16px 0 8px;
@@ -344,7 +336,7 @@
     bottom:90px;left:50%;
     transform:translateX(-50%);
     background:var(--ink);
-    color:#FFF7EA;
+    color:#FFFFFF;
     padding:10px 18px;
     border-radius:30px;
     font-size:13px;
@@ -362,9 +354,7 @@
 <div id="app">
 
   <div class="topbar">
-    <div class="brand">
-      <span class="brand-mark">🥖 Skanepa Bakery</span>
-    </div>
+    <div class="brand-mark">Skanepa Bakery</div>
     <div class="brand-sub">catatan penjualan roti sekolah</div>
   </div>
 
@@ -375,11 +365,24 @@
       <h2 class="section-title">Input Penjualan</h2>
 
       <div class="card">
-        <label for="selAdmin">Nama Admin</label>
-        <select id="selAdmin"></select>
+        <div id="adminFieldWrap">
+          <label for="selAdmin">Nama Admin</label>
+          <select id="selAdmin"></select>
+        </div>
+        <div id="adminNameDisplay" class="admin-name-display placeholder">Pilih nama admin di atas</div>
+
         <label for="inpTanggal">Tanggal</label>
         <input type="date" id="inpTanggal">
-        <div id="adminNameDisplay" class="admin-name-display placeholder">Pilih nama admin di atas</div>
+      </div>
+
+      <div class="card">
+        <h3>Pegawai Bertugas Hari Ini</h3>
+        <label>Pegawai Inti 1</label>
+        <select id="staffInti1"></select>
+        <label>Pegawai Inti 2</label>
+        <select id="staffInti2"></select>
+        <label>Pegawai Helper</label>
+        <select id="staffHelper"></select>
       </div>
 
       <div class="receipt">
@@ -391,7 +394,7 @@
         <h3>Produksi Roti</h3>
         <div class="row2">
           <div>
-            <label id="lblBahan">Jumlah Bahan (kg)</label>
+            <label>Bahan (kg)</label>
             <input type="number" min="0" step="0.01" id="jumlahBahan" placeholder="0">
           </div>
           <div>
@@ -410,13 +413,18 @@
           </div>
           <div>
             <label>Harga Total Roti (Rp)</label>
-            <input type="text" id="hargaTotalDisplay" readonly style="background:#F3EEE3;font-weight:600;">
+            <input type="text" id="hargaTotalDisplay" readonly style="background:#F1F3F6;font-weight:600;">
           </div>
         </div>
         <label>Jumlah Roti Terjual</label>
         <input type="number" min="0" step="1" id="jumlahTerjual" placeholder="0">
         <label>Uang Keluar · Belanja Bahan Hari Ini (Rp)</label>
         <input type="number" min="0" step="500" id="uangKeluarBahan" placeholder="0">
+      </div>
+
+      <div class="card">
+        <h3>Pendapatan Pegawai Hari Ini</h3>
+        <div id="staffPayList"></div>
       </div>
 
       <div class="card">
@@ -430,11 +438,11 @@
           <div class="bl-val" id="calcPeralatan">Rp 0</div>
         </div>
         <div class="breakdown-line bl-minus">
-          <div class="bl-label">Gaji Pegawai<small id="lblGajiDetail">-</small></div>
+          <div class="bl-label" id="lblGajiDetail">Gaji Pegawai<small>-</small></div>
           <div class="bl-val" id="calcGaji">Rp 0</div>
         </div>
         <div class="breakdown-line bl-minus">
-          <div class="bl-label" id="lblBonus">Bonus Pegawai<small>per roti terjual</small></div>
+          <div class="bl-label" id="lblBonus">Bonus Pegawai<small>-</small></div>
           <div class="bl-val" id="calcBonus">Rp 0</div>
         </div>
         <div class="breakdown-line bl-minus">
@@ -461,7 +469,7 @@
         <select id="pdfAdmin"></select>
         <label>Tanggal</label>
         <input type="date" id="pdfTanggal">
-        <button class="btn-primary" id="btnDownloadPdf">⬇ Unduh PDF Laporan</button>
+        <button class="btn-primary" id="btnDownloadPdf">Unduh PDF Laporan</button>
       </div>
 
       <div class="divider-label">Daftar Riwayat (terbaru dahulu)</div>
@@ -472,7 +480,7 @@
     <section id="view-pengaturan" class="view">
       <h2 class="section-title">Pengaturan</h2>
 
-      <div class="notice">ℹ️ Data pengaturan &amp; riwayat pada aplikasi ini tersimpan bersama (shared) — semua orang yang membuka aplikasi ini melihat &amp; memakai data yang sama.</div>
+      <div class="notice">Data pengaturan &amp; riwayat pada aplikasi ini tersimpan bersama (shared) — semua orang yang membuka aplikasi ini melihat &amp; memakai data yang sama.</div>
 
       <div class="card">
         <h3>Daftar Nama Admin</h3>
@@ -484,21 +492,11 @@
       </div>
 
       <div class="card">
-        <h3>Label Bahan Baku</h3>
-        <label>Nama bahan yang ditampilkan di form input (satuan tetap kg)</label>
-        <input type="text" id="bahanLabelInput" placeholder="cth: Tepung Terigu">
-      </div>
-
-      <div class="card">
         <h3>Daftar Pegawai</h3>
         <div id="pegawaiSettingsList"></div>
         <div class="add-row" style="margin-top:10px;">
           <input type="text" id="newPegawaiName" placeholder="Nama pegawai baru">
-          <select id="newPegawaiKategori">
-            <option value="inti">Inti</option>
-            <option value="helper">Helper</option>
-          </select>
-          <button class="btn-small" id="btnAddPegawai">+</button>
+          <button class="btn-small" id="btnAddPegawai">Tambah</button>
         </div>
         <div class="row2" style="margin-top:12px;">
           <div>
@@ -513,9 +511,7 @@
       </div>
 
       <div class="card">
-        <h3>Bonus &amp; Persentase Biaya</h3>
-        <label>Nilai Bonus per Roti Terjual (Rp)</label>
-        <input type="number" min="0" id="bonusPerRotiInput">
+        <h3>Persentase Biaya</h3>
         <div class="row2">
           <div>
             <label>Biaya Peralatan (%)</label>
@@ -542,9 +538,9 @@
   </main>
 
   <nav class="bottom-nav">
-    <button data-view="input" class="active"><span class="nav-ic">🥐</span>Input</button>
-    <button data-view="riwayat"><span class="nav-ic">📜</span>Riwayat</button>
-    <button data-view="pengaturan"><span class="nav-ic">⚙️</span>Pengaturan</button>
+    <button data-view="input" class="active"><span class="nav-ic"></span>Input</button>
+    <button data-view="riwayat"><span class="nav-ic"></span>Riwayat</button>
+    <button data-view="pengaturan"><span class="nav-ic"></span>Pengaturan</button>
   </nav>
 
   <div class="toast" id="toast"></div>
@@ -555,16 +551,15 @@
 
 const DEFAULT_SETTINGS = {
   admins: ["Admin 1"],
-  bahanLabel: "Tepung Terigu",
-  pegawai: [{name:"Pegawai Inti 1", kategori:"inti"}],
+  pegawai: ["Pegawai 1", "Pegawai 2", "Pegawai 3"],
   gajiInti: 50000,
   gajiHelper: 30000,
-  bonusPerRoti: 100,
   pctPeralatan: 30,
   pctSkabic: 2,
   guruNama: "",
   guruNip: ""
 };
+const BONUS_MULTIPLIER = 1000; // Rp per roti terjual, dibagi rata ke pegawai bertugas
 
 let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 let riwayat = [];
@@ -624,13 +619,18 @@ document.querySelectorAll('.bottom-nav button').forEach(btn=>{
     document.getElementById('view-'+btn.dataset.view).classList.add('active');
     if(btn.dataset.view === 'riwayat') renderRiwayatList();
     if(btn.dataset.view === 'pengaturan') renderSettingsForm();
+    if(btn.dataset.view === 'input') resetInputForm();
   });
 });
 
 // ---------- INPUT PENJUALAN ----------
+const elAdminFieldWrap = document.getElementById('adminFieldWrap');
 const elAdmin = document.getElementById('selAdmin');
 const elTanggal = document.getElementById('inpTanggal');
 const elAdminDisplay = document.getElementById('adminNameDisplay');
+const elStaffInti1 = document.getElementById('staffInti1');
+const elStaffInti2 = document.getElementById('staffInti2');
+const elStaffHelper = document.getElementById('staffHelper');
 const elJumlahBahan = document.getElementById('jumlahBahan');
 const elJumlahDihasilkan = document.getElementById('jumlahDihasilkan');
 const elHargaSatuan = document.getElementById('hargaSatuan');
@@ -646,6 +646,14 @@ function populateAdminSelects(){
     if(settings.admins.includes(cur)) sel.value = cur;
   });
 }
+function populateStaffSelects(){
+  [elStaffInti1, elStaffInti2, elStaffHelper].forEach(sel=>{
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">-- pilih --</option>' +
+      settings.pegawai.map(p=>`<option value="${p}">${p}</option>`).join('');
+    if(settings.pegawai.includes(cur)) sel.value = cur;
+  });
+}
 
 function findExistingRecord(admin, tanggal){
   return riwayat.find(r=>r.admin===admin && r.tanggal===tanggal);
@@ -657,29 +665,51 @@ function loadFormFromRecord(rec){
   elHargaSatuan.value = rec ? rec.hargaSatuan : '';
   elJumlahTerjual.value = rec ? rec.jumlahTerjual : '';
   elUangKeluarBahan.value = rec ? rec.uangKeluarBahan : '';
+  elStaffInti1.value = rec ? (rec.staffInti1 || '') : '';
+  elStaffInti2.value = rec ? (rec.staffInti2 || '') : '';
+  elStaffHelper.value = rec ? (rec.staffHelper || '') : '';
 }
 
-function onAdminOrDateChange(){
+function resetInputForm(){
+  elAdmin.value = '';
+  elAdminFieldWrap.style.display = '';
+  elAdminDisplay.textContent = 'Pilih nama admin di atas';
+  elAdminDisplay.classList.add('placeholder');
+  elTanggal.value = todayStr();
+  loadFormFromRecord(null);
+  recalc();
+}
+
+function onAdminChange(){
   const admin = elAdmin.value;
-  const tanggal = elTanggal.value;
   if(admin){
     elAdminDisplay.textContent = admin;
     elAdminDisplay.classList.remove('placeholder');
+    elAdminFieldWrap.style.display = 'none';
   }else{
     elAdminDisplay.textContent = 'Pilih nama admin di atas';
     elAdminDisplay.classList.add('placeholder');
+    elAdminFieldWrap.style.display = '';
   }
+  loadRecordForCurrentSelection();
+}
+function onTanggalChange(){
+  loadRecordForCurrentSelection();
+}
+function loadRecordForCurrentSelection(){
+  const admin = elAdmin.value;
+  const tanggal = elTanggal.value;
   const rec = (admin && tanggal) ? findExistingRecord(admin, tanggal) : null;
   loadFormFromRecord(rec);
   recalc();
 }
 
-function gajiPegawaiTotal(){
-  let total = 0;
-  settings.pegawai.forEach(p=>{
-    total += (p.kategori === 'inti') ? Number(settings.gajiInti||0) : Number(settings.gajiHelper||0);
-  });
-  return total;
+function staffList(){
+  const list = [];
+  if(elStaffInti1.value) list.push({slot:'Inti', name: elStaffInti1.value});
+  if(elStaffInti2.value) list.push({slot:'Inti', name: elStaffInti2.value});
+  if(elStaffHelper.value) list.push({slot:'Helper', name: elStaffHelper.value});
+  return list;
 }
 
 function recalc(){
@@ -694,40 +724,57 @@ function recalc(){
   const uangMasuk = hargaSatuan * jumlahTerjual;
   document.getElementById('uangMasukDisplay').textContent = rp(uangMasuk);
 
+  const staff = staffList();
+  const gajiPegawai = staff.reduce((sum,s)=> sum + (s.slot==='Inti' ? Number(settings.gajiInti||0) : Number(settings.gajiHelper||0)), 0);
+  const bonusTotal = jumlahTerjual * BONUS_MULTIPLIER;
+  const bonusPerOrang = staff.length ? bonusTotal / staff.length : 0;
+
   const biayaPeralatan = uangMasuk * (Number(settings.pctPeralatan||0)/100);
-  const gajiPegawai = gajiPegawaiTotal();
-  const bonus = jumlahTerjual * Number(settings.bonusPerRoti||0);
   const biayaSkabic = uangMasuk * (Number(settings.pctSkabic||0)/100);
 
-  const laba = uangMasuk - uangKeluarBahan - biayaPeralatan - gajiPegawai - bonus - biayaSkabic;
+  const laba = uangMasuk - uangKeluarBahan - biayaPeralatan - gajiPegawai - bonusTotal - biayaSkabic;
+
+  // staff pay list card
+  const payWrap = document.getElementById('staffPayList');
+  if(staff.length===0){
+    payWrap.innerHTML = `<div class="empty-state" style="padding:14px 0;">Pilih pegawai bertugas terlebih dahulu</div>`;
+  }else{
+    payWrap.innerHTML = staff.map(s=>{
+      const gaji = s.slot==='Inti' ? Number(settings.gajiInti||0) : Number(settings.gajiHelper||0);
+      return `
+      <div class="staff-pay-row">
+        <span class="sp-name">${s.name}<span class="sp-role">${s.slot}</span></span>
+        <div class="sp-nums"><span>Gaji: ${rp(gaji)}</span><span>Bonus: ${rp(bonusPerOrang)}</span></div>
+      </div>`;
+    }).join('');
+  }
 
   document.getElementById('calcBelanja').textContent = rp(uangKeluarBahan);
   document.getElementById('lblPeralatan').innerHTML = `Biaya Peralatan<small>${settings.pctPeralatan}% dari uang masuk</small>`;
   document.getElementById('calcPeralatan').textContent = rp(biayaPeralatan);
-  document.getElementById('lblGajiDetail').textContent = settings.pegawai.length
-    ? settings.pegawai.map(p=>`${p.name} (${p.kategori})`).join(', ')
-    : 'belum ada pegawai';
+  document.getElementById('lblGajiDetail').innerHTML = `Gaji Pegawai<small>${staff.length ? staff.map(s=>s.name+' ('+s.slot+')').join(', ') : 'belum ada pegawai bertugas'}</small>`;
   document.getElementById('calcGaji').textContent = rp(gajiPegawai);
-  document.getElementById('lblBonus').innerHTML = `Bonus Pegawai<small>${jumlahTerjual} roti × ${rp(settings.bonusPerRoti)}</small>`;
-  document.getElementById('calcBonus').textContent = rp(bonus);
+  document.getElementById('lblBonus').innerHTML = `Bonus Pegawai<small>${jumlahTerjual} roti × ${rp(BONUS_MULTIPLIER)}, dibagi ${staff.length||0} pegawai</small>`;
+  document.getElementById('calcBonus').textContent = rp(bonusTotal);
   document.getElementById('lblSkabic').innerHTML = `Biaya Skabic<small>${settings.pctSkabic}% dari uang masuk</small>`;
   document.getElementById('calcSkabic').textContent = rp(biayaSkabic);
   document.getElementById('calcLaba').textContent = rp(laba);
 
   return {hargaSatuan, jumlahDihasilkan, hargaTotal, jumlahTerjual, uangMasuk, uangKeluarBahan,
-    biayaPeralatan, gajiPegawai, bonus, biayaSkabic, laba};
+    biayaPeralatan, gajiPegawai, bonusTotal, bonusPerOrang, biayaSkabic, laba, staff};
 }
 
-[elJumlahBahan, elJumlahDihasilkan, elHargaSatuan, elJumlahTerjual, elUangKeluarBahan].forEach(el=>{
+[elJumlahBahan, elJumlahDihasilkan, elHargaSatuan, elJumlahTerjual, elUangKeluarBahan, elStaffInti1, elStaffInti2, elStaffHelper].forEach(el=>{
   el.addEventListener('input', recalc);
+  el.addEventListener('change', recalc);
 });
-elAdmin.addEventListener('change', onAdminOrDateChange);
-elTanggal.addEventListener('change', onAdminOrDateChange);
+elAdmin.addEventListener('change', onAdminChange);
+elTanggal.addEventListener('change', onTanggalChange);
 
 document.getElementById('btnSimpan').addEventListener('click', async ()=>{
-  const admin = elAdmin.value;
+  const admin = elAdmin.value || elAdminDisplay.textContent;
   const tanggal = elTanggal.value;
-  if(!admin){ showToast('Pilih nama admin terlebih dahulu'); return; }
+  if(!admin || elAdminDisplay.classList.contains('placeholder')){ showToast('Pilih nama admin terlebih dahulu'); return; }
   if(!tanggal){ showToast('Pilih tanggal terlebih dahulu'); return; }
 
   const c = recalc();
@@ -735,7 +782,6 @@ document.getElementById('btnSimpan').addEventListener('click', async ()=>{
     id: admin+'|'+tanggal,
     admin, tanggal,
     jumlahBahan: Number(elJumlahBahan.value)||0,
-    bahanLabel: settings.bahanLabel,
     jumlahDihasilkan: c.jumlahDihasilkan,
     hargaSatuan: c.hargaSatuan,
     hargaTotal: c.hargaTotal,
@@ -744,10 +790,15 @@ document.getElementById('btnSimpan').addEventListener('click', async ()=>{
     uangKeluarBahan: c.uangKeluarBahan,
     biayaPeralatan: c.biayaPeralatan,
     pctPeralatan: settings.pctPeralatan,
+    staffInti1: elStaffInti1.value,
+    staffInti2: elStaffInti2.value,
+    staffHelper: elStaffHelper.value,
+    staffSnapshot: c.staff,
     gajiPegawai: c.gajiPegawai,
-    pegawaiSnapshot: JSON.parse(JSON.stringify(settings.pegawai)),
-    bonus: c.bonus,
-    bonusPerRoti: settings.bonusPerRoti,
+    gajiIntiRate: settings.gajiInti,
+    gajiHelperRate: settings.gajiHelper,
+    bonusTotal: c.bonusTotal,
+    bonusPerOrang: c.bonusPerOrang,
     biayaSkabic: c.biayaSkabic,
     pctSkabic: settings.pctSkabic,
     laba: c.laba,
@@ -757,7 +808,7 @@ document.getElementById('btnSimpan').addEventListener('click', async ()=>{
   const idx = riwayat.findIndex(r=>r.id===record.id);
   if(idx>=0) riwayat[idx] = record; else riwayat.push(record);
   await persistRiwayat();
-  showToast('Transaksi tersimpan ✓');
+  showToast('Transaksi tersimpan');
 });
 
 // ---------- RIWAYAT ----------
@@ -765,7 +816,7 @@ function renderRiwayatList(){
   const wrap = document.getElementById('riwayatList');
   const sorted = [...riwayat].sort((a,b)=> b.tanggal.localeCompare(a.tanggal) || a.admin.localeCompare(b.admin));
   if(sorted.length===0){
-    wrap.innerHTML = `<div class="empty-state"><span class="em-icon">🧺</span>Belum ada riwayat penjualan</div>`;
+    wrap.innerHTML = `<div class="empty-state">Belum ada riwayat penjualan</div>`;
     return;
   }
   wrap.innerHTML = sorted.map(r=>`
@@ -777,7 +828,7 @@ function renderRiwayatList(){
       <div class="rw-laba">LABA ${rp(r.laba)}</div>
       <div class="rw-actions">
         <button class="btn-small" data-act="edit" data-id="${r.id}">Buka di Input</button>
-        <button class="btn-small" style="background:#F3D9D9;color:#8A2E2E;" data-act="del" data-id="${r.id}">Hapus</button>
+        <button class="btn-small" style="background:var(--danger-bg);color:var(--danger);" data-act="del" data-id="${r.id}">Hapus</button>
       </div>
     </div>
   `).join('');
@@ -786,10 +837,11 @@ function renderRiwayatList(){
     b.addEventListener('click', ()=>{
       const rec = riwayat.find(x=>x.id===b.dataset.id);
       if(!rec) return;
-      elAdmin.value = rec.admin;
-      elTanggal.value = rec.tanggal;
-      onAdminOrDateChange();
       document.querySelector('.bottom-nav button[data-view="input"]').click();
+      elAdmin.value = rec.admin;
+      onAdminChange();
+      elTanggal.value = rec.tanggal;
+      loadRecordForCurrentSelection();
     });
   });
   wrap.querySelectorAll('[data-act="del"]').forEach(b=>{
@@ -825,7 +877,7 @@ function generatePDF(rec){
   doc.setFontSize(10.5);
   doc.text('Laporan Penjualan Roti Harian', pageW/2, 26, {align:'center'});
 
-  doc.setDrawColor(168,72,29);
+  doc.setDrawColor(47,93,138);
   doc.setLineWidth(0.6);
   doc.line(marginX, 30, pageW-marginX, 30);
 
@@ -843,8 +895,13 @@ function generatePDF(rec){
   doc.text(fmtDateID(rec.tanggal), pageW-marginX-45, 42.5);
   doc.line(pageW-marginX-45, 44, pageW-marginX, 44);
 
+  const staffRows = (rec.staffSnapshot||[]).map(s=>{
+    const gaji = s.slot==='Inti' ? rec.gajiIntiRate : rec.gajiHelperRate;
+    return [`${s.name} (${s.slot})`, rp(gaji) + ' / ' + rp(rec.bonusPerOrang)];
+  });
+
   const rows = [
-    ['Jumlah Bahan (' + (rec.bahanLabel||'Bahan') + ')', rec.jumlahBahan + ' kg'],
+    ['Jumlah Bahan (kg)', rec.jumlahBahan + ' kg'],
     ['Jumlah Roti Dihasilkan', rec.jumlahDihasilkan + ' pcs'],
     ['Harga Satuan Roti', rp(rec.hargaSatuan)],
     ['Harga Total Roti (produksi)', rp(rec.hargaTotal)],
@@ -852,8 +909,8 @@ function generatePDF(rec){
     ['Uang Masuk (Hasil Penjualan)', rp(rec.uangMasuk)],
     ['Uang Keluar (Belanja Bahan)', '- ' + rp(rec.uangKeluarBahan)],
     ['Biaya Peralatan (' + rec.pctPeralatan + '%)', '- ' + rp(rec.biayaPeralatan)],
-    ['Gaji Pegawai (' + (rec.pegawaiSnapshot||[]).map(p=>p.name+' - '+p.kategori).join(', ') + ')', '- ' + rp(rec.gajiPegawai)],
-    ['Bonus Pegawai (' + rec.jumlahTerjual + ' x ' + rp(rec.bonusPerRoti) + ')', '- ' + rp(rec.bonus)],
+    ['Gaji Pegawai (total)', '- ' + rp(rec.gajiPegawai)],
+    ['Bonus Pegawai (total)', '- ' + rp(rec.bonusTotal)],
     ['Biaya Skabic (' + rec.pctSkabic + '%)', '- ' + rp(rec.biayaSkabic)],
   ];
 
@@ -863,28 +920,43 @@ function generatePDF(rec){
     body: rows,
     theme: 'grid',
     styles: { font:'helvetica', fontSize:9.5, cellPadding:2.6 },
-    headStyles: { fillColor:[168,72,29], textColor:255, fontStyle:'bold' },
+    headStyles: { fillColor:[47,93,138], textColor:255, fontStyle:'bold' },
     columnStyles: { 1: {halign:'right', cellWidth:55} },
     margin: { left: marginX, right: marginX }
   });
 
   let y = doc.lastAutoTable.finalY + 4;
-  doc.setFillColor(225,233,214);
+
+  if(staffRows.length){
+    doc.autoTable({
+      startY: y,
+      head: [['Pegawai Bertugas', 'Gaji / Bonus']],
+      body: staffRows,
+      theme: 'grid',
+      styles: { font:'helvetica', fontSize:9, cellPadding:2.4 },
+      headStyles: { fillColor:[102,116,138], textColor:255, fontStyle:'bold' },
+      columnStyles: { 1: {halign:'right', cellWidth:55} },
+      margin: { left: marginX, right: marginX }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
+  doc.setFillColor(230,244,236);
   doc.rect(marginX, y, pageW-marginX*2, 12, 'F');
   doc.setFont('helvetica','bold');
   doc.setFontSize(12);
-  doc.setTextColor(43,27,18);
+  doc.setTextColor(31,42,56);
   doc.text('LABA', marginX+4, y+8);
   doc.text(rp(rec.laba), pageW-marginX-4, y+8, {align:'right'});
   doc.setTextColor(0,0,0);
 
-  y += 30;
+  y += 26;
   const sigX = pageW - marginX - 55;
   doc.setFont('helvetica','normal');
   doc.setFontSize(10);
   doc.text('Mengetahui,', sigX, y);
   doc.text('Guru Pembina', sigX, y+5);
-  y += 28;
+  y += 26;
   doc.line(sigX, y, sigX+55, y);
   doc.setFont('helvetica','bold');
   doc.text(rec.__guruNama || '', sigX, y+5);
@@ -921,7 +993,7 @@ function renderPegawaiSettingsList(){
   }
   wrap.innerHTML = settings.pegawai.map((p,i)=>`
     <div class="list-item">
-      <span>${p.name} <span class="tag ${p.kategori}">${p.kategori}</span></span>
+      <span>${p}</span>
       <button class="btn-del" data-i="${i}">✕</button>
     </div>`).join('');
   wrap.querySelectorAll('.btn-del').forEach(b=>{
@@ -935,10 +1007,8 @@ function renderPegawaiSettingsList(){
 function renderSettingsForm(){
   renderAdminSettingsList();
   renderPegawaiSettingsList();
-  document.getElementById('bahanLabelInput').value = settings.bahanLabel;
   document.getElementById('gajiIntiInput').value = settings.gajiInti;
   document.getElementById('gajiHelperInput').value = settings.gajiHelper;
-  document.getElementById('bonusPerRotiInput').value = settings.bonusPerRoti;
   document.getElementById('pctPeralatanInput').value = settings.pctPeralatan;
   document.getElementById('pctSkabicInput').value = settings.pctSkabic;
   document.getElementById('guruNamaInput').value = settings.guruNama;
@@ -956,19 +1026,17 @@ document.getElementById('btnAddAdmin').addEventListener('click', ()=>{
 });
 document.getElementById('btnAddPegawai').addEventListener('click', ()=>{
   const inp = document.getElementById('newPegawaiName');
-  const kat = document.getElementById('newPegawaiKategori').value;
   const v = inp.value.trim();
   if(!v){ showToast('Isi nama pegawai dulu'); return; }
-  settings.pegawai.push({name:v, kategori:kat});
+  if(settings.pegawai.includes(v)){ showToast('Nama sudah ada'); return; }
+  settings.pegawai.push(v);
   inp.value='';
   renderPegawaiSettingsList();
 });
 
 document.getElementById('btnSaveSettings').addEventListener('click', async ()=>{
-  settings.bahanLabel = document.getElementById('bahanLabelInput').value.trim() || 'Bahan';
   settings.gajiInti = Number(document.getElementById('gajiIntiInput').value)||0;
   settings.gajiHelper = Number(document.getElementById('gajiHelperInput').value)||0;
-  settings.bonusPerRoti = Number(document.getElementById('bonusPerRotiInput').value)||0;
   settings.pctPeralatan = Number(document.getElementById('pctPeralatanInput').value)||0;
   settings.pctSkabic = Number(document.getElementById('pctSkabicInput').value)||0;
   settings.guruNama = document.getElementById('guruNamaInput').value.trim();
@@ -976,29 +1044,24 @@ document.getElementById('btnSaveSettings').addEventListener('click', async ()=>{
 
   await persistSettings();
   populateAdminSelects();
-  document.getElementById('lblBahan').textContent = settings.bahanLabel + ' (kg)';
+  populateStaffSelects();
   recalc();
-  showToast('Pengaturan tersimpan ✓');
+  showToast('Pengaturan tersimpan');
 });
 
 // ---------- INIT ----------
 async function init(){
   await loadAll();
   populateAdminSelects();
-  document.getElementById('lblBahan').textContent = settings.bahanLabel + ' (kg)';
-  elTanggal.value = todayStr();
+  populateStaffSelects();
   document.getElementById('pdfTanggal').value = todayStr();
   renderSettingsForm();
   renderRiwayatList();
-  recalc();
-
-  // attach guru info onto record right before pdf generation (in case updated after saving)
-  const origGen = generatePDF;
-  window.__origGenPDF = origGen;
+  resetInputForm();
 }
 init();
 
-// patch generatePDF to inject latest guru info at call-time
+// inject latest guru info at pdf generation time
 const _generatePDF = generatePDF;
 generatePDF = function(rec){
   rec = Object.assign({}, rec, { __guruNama: settings.guruNama, __guruNip: settings.guruNip });
