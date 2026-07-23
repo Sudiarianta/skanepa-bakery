@@ -50,6 +50,7 @@
     position:sticky;
     top:0;
     z-index:20;
+    border-radius:0 0 20px 20px;
   }
   .topbar .brand-mark{
     font-weight:800;
@@ -180,6 +181,17 @@
     font-family:'IBM Plex Mono',monospace;
     font-size:12.5px;
     color:var(--ink-soft);
+  }
+  .staff-pay-row .sp-total{
+    display:flex;
+    justify-content:space-between;
+    margin-top:6px;
+    padding-top:6px;
+    border-top:1px dashed var(--line);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    font-weight:700;
+    color:var(--primary-dark);
   }
 
   .laba-box{
@@ -469,7 +481,14 @@
         <select id="pdfAdmin"></select>
         <label>Tanggal</label>
         <input type="date" id="pdfTanggal">
-        <button class="btn-primary" id="btnDownloadPdf">Unduh PDF Laporan</button>
+        <button class="btn-primary" id="btnDownloadPdf">Unduh PDF Laporan Harian</button>
+      </div>
+
+      <div class="card">
+        <h3>Unduh Rekap Bulanan</h3>
+        <label>Pilih Bulan</label>
+        <input type="month" id="rekapBulan">
+        <button class="btn-primary" id="btnDownloadRekapBulanan">Unduh Rekap Bulanan</button>
       </div>
 
       <div class="divider-label">Daftar Riwayat (terbaru dahulu)</div>
@@ -577,6 +596,12 @@ function fmtDateID(iso){
   const [y,m,d] = iso.split("-");
   const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
   return `${parseInt(d)} ${bulan[parseInt(m)-1]} ${y}`;
+}
+function fmtBulanID(ym){
+  if(!ym) return "-";
+  const [y,m] = ym.split("-");
+  const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+  return `${bulan[parseInt(m)-1]} ${y}`;
 }
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -741,10 +766,12 @@ function recalc(){
   }else{
     payWrap.innerHTML = staff.map(s=>{
       const gaji = s.slot==='Inti' ? Number(settings.gajiInti||0) : Number(settings.gajiHelper||0);
+      const totalDiterima = gaji + bonusPerOrang;
       return `
       <div class="staff-pay-row">
         <span class="sp-name">${s.name}<span class="sp-role">${s.slot}</span></span>
         <div class="sp-nums"><span>Gaji: ${rp(gaji)}</span><span>Bonus: ${rp(bonusPerOrang)}</span></div>
+        <div class="sp-total"><span>Total Diterima</span><span>${rp(totalDiterima)}</span></div>
       </div>`;
     }).join('');
   }
@@ -864,6 +891,14 @@ document.getElementById('btnDownloadPdf').addEventListener('click', ()=>{
   generatePDF(rec);
 });
 
+document.getElementById('btnDownloadRekapBulanan').addEventListener('click', ()=>{
+  const bulan = document.getElementById('rekapBulan').value; // format YYYY-MM
+  if(!bulan){ showToast('Pilih bulan terlebih dahulu'); return; }
+  const records = riwayat.filter(r=>r.tanggal.startsWith(bulan)).sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
+  if(records.length===0){ showToast('Tidak ada data pada bulan tersebut'); return; }
+  generateMonthlyPDF(bulan, records);
+});
+
 function generatePDF(rec){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
@@ -951,19 +986,93 @@ function generatePDF(rec){
   doc.setTextColor(0,0,0);
 
   y += 26;
-  const sigX = pageW - marginX - 55;
+  drawSignature(doc, y, pageW, marginX);
+
+  doc.save(`Laporan-Skanepa-${rec.admin}-${rec.tanggal}.pdf`);
+}
+
+// Blok tanda tangan Guru Pembina: digeser lebih ke kiri (sigW lebih lebar) agar nama panjang
+// tetap tercetak utuh, dan TANPA garis supaya tidak mengganggu tanda tangan asli di atas kertas.
+function drawSignature(doc, y, pageW, marginX){
+  const sigW = 74;
+  const sigX = pageW - marginX - sigW;
   doc.setFont('helvetica','normal');
   doc.setFontSize(10);
   doc.text('Mengetahui,', sigX, y);
   doc.text('Guru Pembina', sigX, y+5);
-  y += 26;
-  doc.line(sigX, y, sigX+55, y);
+  y += 26; // ruang kosong untuk tanda tangan asli, tanpa garis
   doc.setFont('helvetica','bold');
-  doc.text(rec.__guruNama || '', sigX, y+5);
+  doc.text(settings.guruNama || '-', sigX, y);
   doc.setFont('helvetica','normal');
-  doc.text('NIP. ' + (rec.__guruNip || '-'), sigX, y+10);
+  doc.text('NIP. ' + (settings.guruNip || '-'), sigX, y+5);
+  return y;
+}
 
-  doc.save(`Laporan-Skanepa-${rec.admin}-${rec.tanggal}.pdf`);
+function generateMonthlyPDF(bulan, records){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const marginX = 14;
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(18);
+  doc.text('SKANEPA BAKERY', pageW/2, 18, {align:'center'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(10.5);
+  doc.text(`Rekap Penjualan Bulanan — ${fmtBulanID(bulan)}`, pageW/2, 24, {align:'center'});
+
+  doc.setDrawColor(47,93,138);
+  doc.setLineWidth(0.6);
+  doc.line(marginX, 28, pageW-marginX, 28);
+
+  let totalMasuk = 0, totalKeluar = 0, totalLaba = 0;
+  const rows = records.map(r=>{
+    const pengeluaran = r.uangKeluarBahan + r.biayaPeralatan + r.gajiPegawai + r.bonusTotal + r.biayaSkabic;
+    totalMasuk += r.uangMasuk;
+    totalKeluar += pengeluaran;
+    totalLaba += r.laba;
+    return [
+      fmtDateID(r.tanggal).replace(' '+bulan.split('-')[0],''),
+      r.admin,
+      r.jumlahTerjual + ' pcs',
+      rp(r.uangMasuk),
+      rp(pengeluaran),
+      rp(r.laba)
+    ];
+  });
+
+  doc.autoTable({
+    startY: 33,
+    head: [['Tanggal','Admin','Terjual','Uang Masuk','Pengeluaran','Laba']],
+    body: rows,
+    foot: [['', '', '', rp(totalMasuk), rp(totalKeluar), rp(totalLaba)]],
+    theme: 'grid',
+    styles: { font:'helvetica', fontSize:8.3, cellPadding:2 },
+    headStyles: { fillColor:[47,93,138], textColor:255, fontStyle:'bold', fontSize:8.5 },
+    footStyles: { fillColor:[230,244,236], textColor:[31,42,56], fontStyle:'bold', fontSize:8.8 },
+    columnStyles: {
+      2:{halign:'center'}, 3:{halign:'right'}, 4:{halign:'right'}, 5:{halign:'right'}
+    },
+    margin: { left: marginX, right: marginX }
+  });
+
+  let y = doc.lastAutoTable.finalY + 10;
+  if(y > 255) { doc.addPage(); y = 20; }
+
+  doc.setFillColor(230,244,236);
+  doc.rect(marginX, y, pageW-marginX*2, 12, 'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(12);
+  doc.setTextColor(31,42,56);
+  doc.text('TOTAL LABA BULAN INI', marginX+4, y+8);
+  doc.text(rp(totalLaba), pageW-marginX-4, y+8, {align:'right'});
+  doc.setTextColor(0,0,0);
+
+  y += 30;
+  if(y > 255){ doc.addPage(); y = 30; }
+  drawSignature(doc, y, pageW, marginX);
+
+  doc.save(`Rekap-Bulanan-Skanepa-${bulan}.pdf`);
 }
 
 // ---------- PENGATURAN ----------
@@ -1055,18 +1164,12 @@ async function init(){
   populateAdminSelects();
   populateStaffSelects();
   document.getElementById('pdfTanggal').value = todayStr();
+  document.getElementById('rekapBulan').value = todayStr().slice(0,7);
   renderSettingsForm();
   renderRiwayatList();
   resetInputForm();
 }
 init();
-
-// inject latest guru info at pdf generation time
-const _generatePDF = generatePDF;
-generatePDF = function(rec){
-  rec = Object.assign({}, rec, { __guruNama: settings.guruNama, __guruNip: settings.guruNip });
-  _generatePDF(rec);
-};
 
 })();
 </script>
