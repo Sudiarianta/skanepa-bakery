@@ -499,7 +499,7 @@
     <section id="view-pengaturan" class="view">
       <h2 class="section-title">Pengaturan</h2>
 
-      <div class="notice">Data pengaturan &amp; riwayat pada aplikasi ini tersimpan bersama (shared) — semua orang yang membuka aplikasi ini melihat &amp; memakai data yang sama.</div>
+      <div class="notice" id="storageNotice">Data pengaturan &amp; riwayat pada aplikasi ini tersimpan bersama (shared) — semua orang yang membuka aplikasi ini melihat &amp; memakai data yang sama.</div>
 
       <div class="card">
         <h3>Daftar Nama Admin</h3>
@@ -611,27 +611,54 @@ function showToast(msg){
 }
 
 // ---------- STORAGE ----------
+// window.storage hanya tersedia di dalam Claude.ai. Jika aplikasi ini dijalankan
+// di luar Claude.ai (mis. di-hosting sendiri di GitHub Pages), otomatis pakai
+// localStorage browser supaya data tetap bisa tersimpan.
+const useClaudeStorage = !!(window.storage && typeof window.storage.set === 'function');
+
+async function storageGet(key, shared){
+  if(useClaudeStorage) return await window.storage.get(key, shared);
+  const raw = localStorage.getItem('skanepa:'+key);
+  if(raw === null) throw new Error('key not found');
+  return { key, value: raw, shared };
+}
+async function storageSet(key, value, shared){
+  if(useClaudeStorage) return await window.storage.set(key, value, shared);
+  localStorage.setItem('skanepa:'+key, value);
+  return { key, value, shared };
+}
+
 async function loadAll(){
   try{
-    const s = await window.storage.get('settings', true);
+    const s = await storageGet('settings', true);
     if(s && s.value){
       settings = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(s.value));
     }else{
-      await window.storage.set('settings', JSON.stringify(settings), true);
+      await storageSet('settings', JSON.stringify(settings), true);
     }
-  }catch(e){ console.error('load settings error', e); }
+  }catch(e){
+    // key belum ada sama sekali -> buat baru dengan default
+    try{ await storageSet('settings', JSON.stringify(settings), true); }catch(e2){ console.error('gagal membuat settings awal', e2); }
+  }
 
   try{
-    const r = await window.storage.get('riwayat-penjualan', true);
+    const r = await storageGet('riwayat-penjualan', true);
     riwayat = (r && r.value) ? JSON.parse(r.value) : [];
   }catch(e){ riwayat = []; }
+
+  const notice = document.getElementById('storageNotice');
+  if(notice){
+    notice.textContent = useClaudeStorage
+      ? 'Data pengaturan & riwayat pada aplikasi ini tersimpan bersama (shared) — semua orang yang membuka aplikasi ini melihat & memakai data yang sama.'
+      : 'Aplikasi ini berjalan di luar Claude.ai, sehingga data pengaturan & riwayat disimpan secara lokal di browser perangkat ini. Data tidak otomatis tersinkron ke perangkat/browser lain.';
+  }
 }
 async function persistSettings(){
-  try{ await window.storage.set('settings', JSON.stringify(settings), true); }
+  try{ await storageSet('settings', JSON.stringify(settings), true); }
   catch(e){ console.error(e); showToast('Gagal menyimpan pengaturan'); }
 }
 async function persistRiwayat(){
-  try{ await window.storage.set('riwayat-penjualan', JSON.stringify(riwayat), true); }
+  try{ await storageSet('riwayat-penjualan', JSON.stringify(riwayat), true); }
   catch(e){ console.error(e); showToast('Gagal menyimpan riwayat'); }
 }
 
