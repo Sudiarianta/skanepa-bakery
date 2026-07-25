@@ -429,6 +429,7 @@
         <select id="staffInti2"></select>
         <label>Pegawai Helper</label>
         <select id="staffHelper"></select>
+        <div id="staffDupeWarning" style="display:none;color:var(--danger);font-size:12px;margin-top:-2px;">⚠ Nama pegawai tidak boleh sama di lebih dari satu slot.</div>
       </div>
 
       <div class="receipt">
@@ -628,8 +629,8 @@
 // Isi dua nilai di bawah ini dengan Project URL & anon public key dari Supabase kamu
 // (Supabase Dashboard > Settings > API). Kalau dikosongkan, aplikasi otomatis
 // memakai penyimpanan lokal (window.storage di Claude.ai, atau localStorage browser).
-const SUPABASE_URL = "https://zdetqhpnllxvjdbiilbm.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_mfvxjw8r9wJ3ZY4U62CzVA_iGR_9oB8";
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
 
 let supabaseClient = null;
 if(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase){
@@ -780,8 +781,27 @@ async function refreshRiwayat(){
   }catch(e){ /* biarkan riwayat lokal apa adanya kalau gagal ambil data */ }
 }
 
+async function refreshSettings(){
+  try{
+    let loaded = null;
+    if(supabaseClient){
+      const {data, error} = await supabaseClient.from('settings').select('*').eq('id',1).maybeSingle();
+      if(error) throw error;
+      loaded = data ? mapSettingsFromDb(data) : null;
+    } else {
+      const s = await storageGet('settings', true);
+      loaded = (s && s.value) ? JSON.parse(s.value) : null;
+    }
+    if(loaded){
+      settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
+      if(!settings.adminPasswordHash){ settings.adminPasswordHash = await hashPassword(DEFAULT_ADMIN_PASSWORD); }
+    }
+  }catch(e){ /* biarkan pengaturan lokal apa adanya kalau gagal ambil data terbaru */ }
+}
+
 async function loadAll(){
   let loaded = null;
+  let connectError = false;
   try{
     if(supabaseClient){
       const {data, error} = await supabaseClient.from('settings').select('*').eq('id',1).maybeSingle();
@@ -791,7 +811,10 @@ async function loadAll(){
       const s = await storageGet('settings', true);
       loaded = (s && s.value) ? JSON.parse(s.value) : null;
     }
-  }catch(e){ loaded = null; }
+  }catch(e){
+    loaded = null;
+    if(supabaseClient) connectError = true;
+  }
 
   settings = loaded ? Object.assign({}, DEFAULT_SETTINGS, loaded) : JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
   if(!settings.adminPasswordHash){
@@ -802,6 +825,10 @@ async function loadAll(){
   }
 
   await refreshRiwayat();
+
+  if(connectError){
+    showToast('Gagal terhubung ke Supabase — cek URL/API key, sementara pakai data lokal');
+  }
 
   const notice = document.getElementById('storageNotice');
   if(notice){
@@ -904,8 +931,16 @@ async function switchView(btn){
     await refreshRiwayat();
     renderRiwayatList();
   }
-  if(btn.dataset.view === 'pengaturan') renderSettingsForm();
+  if(btn.dataset.view === 'pengaturan'){
+    await refreshSettings();
+    populateAdminSelects();
+    populateStaffSelects();
+    renderSettingsForm();
+  }
   if(btn.dataset.view === 'input'){
+    await refreshSettings();
+    populateAdminSelects();
+    populateStaffSelects();
     await refreshRiwayat();
     resetInputForm();
   }
@@ -1013,6 +1048,10 @@ function recalc(){
   document.getElementById('uangMasukDisplay').textContent = rp(uangMasuk);
 
   const staff = staffList();
+  const staffNames = staff.map(s=>s.name);
+  const hasDupeStaff = staffNames.length !== new Set(staffNames).size;
+  document.getElementById('staffDupeWarning').style.display = hasDupeStaff ? 'block' : 'none';
+
   const gajiPegawai = staff.reduce((sum,s)=> sum + (s.slot==='Inti' ? Number(settings.gajiInti||0) : Number(settings.gajiHelper||0)), 0);
   const bonusTotal = jumlahTerjual * BONUS_MULTIPLIER;
   const bonusPerOrang = staff.length ? bonusTotal / staff.length : 0;
@@ -1051,7 +1090,7 @@ function recalc(){
   document.getElementById('calcLaba').textContent = rp(laba);
 
   return {hargaSatuan, jumlahDihasilkan, hargaTotal, jumlahTerjual, uangMasuk, uangKeluarBahan,
-    biayaPeralatan, gajiPegawai, bonusTotal, bonusPerOrang, biayaSkabic, laba, staff};
+    biayaPeralatan, gajiPegawai, bonusTotal, bonusPerOrang, biayaSkabic, laba, staff, hasDupeStaff};
 }
 
 [elJumlahBahan, elJumlahDihasilkan, elHargaSatuan, elJumlahTerjual, elUangKeluarBahan, elStaffInti1, elStaffInti2, elStaffHelper].forEach(el=>{
@@ -1068,6 +1107,7 @@ document.getElementById('btnSimpan').addEventListener('click', async ()=>{
   if(!tanggal){ showToast('Pilih tanggal terlebih dahulu'); return; }
 
   const c = recalc();
+  if(c.hasDupeStaff){ showToast('Nama pegawai tidak boleh sama di lebih dari satu slot'); return; }
   const record = {
     id: admin+'|'+tanggal,
     admin, tanggal,
@@ -1149,18 +1189,20 @@ function renderRiwayatList(){
   });
 }
 
-document.getElementById('btnDownloadPdf').addEventListener('click', ()=>{
+document.getElementById('btnDownloadPdf').addEventListener('click', async ()=>{
   const admin = document.getElementById('pdfAdmin').value;
   const tanggal = document.getElementById('pdfTanggal').value;
   if(!admin || !tanggal){ showToast('Pilih nama admin & tanggal dulu'); return; }
+  await refreshRiwayat();
   const rec = findExistingRecord(admin, tanggal);
   if(!rec){ showToast('Data tidak ditemukan untuk admin & tanggal tsb'); return; }
   generatePDF(rec);
 });
 
-document.getElementById('btnDownloadRekapBulanan').addEventListener('click', ()=>{
+document.getElementById('btnDownloadRekapBulanan').addEventListener('click', async ()=>{
   const bulan = document.getElementById('rekapBulan').value; // format YYYY-MM
   if(!bulan){ showToast('Pilih bulan terlebih dahulu'); return; }
+  await refreshRiwayat();
   const records = riwayat.filter(r=>r.tanggal.startsWith(bulan)).sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
   if(records.length===0){ showToast('Tidak ada data pada bulan tersebut'); return; }
   generateMonthlyPDF(bulan, records);
