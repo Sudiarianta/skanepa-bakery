@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg:#F3F5F8;
@@ -92,7 +93,7 @@
     color:var(--ink-soft);
     margin-bottom:5px;
   }
-  input[type=text],input[type=number],input[type=date],select{
+  input[type=text],input[type=number],input[type=date],input[type=month],input[type=password],select{
     width:100%;
     padding:11px 12px;
     border-radius:9px;
@@ -232,6 +233,16 @@
     margin-top:6px;
   }
   .btn-primary:active{background:var(--primary-dark);}
+  .btn-outline-danger{
+    width:100%;
+    background:var(--surface);
+    color:var(--danger);
+    border:1.5px solid var(--danger);
+    padding:12px;
+    border-radius:11px;
+    font-size:14px;
+    margin-top:8px;
+  }
   .btn-small{
     background:var(--primary-tint);
     color:var(--primary-dark);
@@ -360,6 +371,29 @@
     text-align:center;
   }
   .toast.show{opacity:1;}
+
+  .modal-overlay{
+    position:fixed;inset:0;
+    background:rgba(30,42,56,0.55);
+    display:none;
+    align-items:center;justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-box{
+    background:var(--surface);
+    border-radius:16px;
+    padding:22px;
+    width:100%;
+    max-width:340px;
+  }
+  .modal-box h3{margin:0 0 6px;font-size:16px;font-weight:800;color:var(--primary-dark);}
+  .modal-desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5;}
+  .modal-actions{display:flex;gap:10px;margin-top:4px;}
+  .modal-btn-cancel{flex:1;padding:11px;border-radius:10px;font-size:14px;background:var(--bg);color:var(--ink-soft);}
+  .modal-btn-primary{flex:1;padding:11px;border-radius:10px;font-size:14px;background:var(--primary);color:#fff;}
+  .modal-error{color:var(--danger);font-size:12px;margin-top:8px;min-height:14px;}
 </style>
 </head>
 <body>
@@ -551,6 +585,15 @@
         <input type="text" id="guruNipInput" placeholder="NIP">
       </div>
 
+      <div class="card">
+        <h3>Keamanan Admin</h3>
+        <label>Kata Sandi Admin Baru (kosongkan jika tidak ingin diubah)</label>
+        <input type="password" id="newAdminPasswordInput" placeholder="Kata sandi baru">
+        <label>Ulangi Kata Sandi Baru</label>
+        <input type="password" id="newAdminPasswordConfirm" placeholder="Ulangi kata sandi baru">
+        <button class="btn-outline-danger" id="btnLockAdmin">Kunci Mode Admin Sekarang</button>
+      </div>
+
       <button class="btn-primary" id="btnSaveSettings">Simpan Semua Pengaturan</button>
     </section>
 
@@ -563,10 +606,38 @@
   </nav>
 
   <div class="toast" id="toast"></div>
+
+  <div class="modal-overlay" id="pwModalOverlay">
+    <div class="modal-box">
+      <h3>Masuk Sebagai Admin</h3>
+      <p class="modal-desc">Menu Pengaturan dan aksi ubah/hapus riwayat khusus untuk admin. Masukkan kata sandi admin untuk melanjutkan.</p>
+      <input type="password" id="pwModalInput" placeholder="Kata sandi admin">
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" id="pwModalCancel">Batal</button>
+        <button class="modal-btn-primary" id="pwModalSubmit">Masuk</button>
+      </div>
+      <div class="modal-error" id="pwModalError"></div>
+    </div>
+  </div>
 </div>
 
 <script>
 (function(){
+
+// ====== KONFIGURASI SUPABASE ======
+// Isi dua nilai di bawah ini dengan Project URL & anon public key dari Supabase kamu
+// (Supabase Dashboard > Settings > API). Kalau dikosongkan, aplikasi otomatis
+// memakai penyimpanan lokal (window.storage di Claude.ai, atau localStorage browser).
+const SUPABASE_URL = "https://zdetqhpnllxvjdbiilbm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mfvxjw8r9wJ3ZY4U62CzVA_iGR_9oB8";
+
+let supabaseClient = null;
+if(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase){
+  try{ supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+  catch(e){ console.error('Gagal membuat Supabase client', e); }
+}
+
+const DEFAULT_ADMIN_PASSWORD = "skanepa123"; // kata sandi admin awal, segera ganti lewat menu Pengaturan
 
 const DEFAULT_SETTINGS = {
   admins: ["Admin 1"],
@@ -576,7 +647,8 @@ const DEFAULT_SETTINGS = {
   pctPeralatan: 30,
   pctSkabic: 2,
   guruNama: "",
-  guruNip: ""
+  guruNip: "",
+  adminPasswordHash: ""
 };
 const BONUS_MULTIPLIER = 1000; // Rp per roti terjual, dibagi rata ke pegawai bertugas
 
@@ -603,6 +675,11 @@ function fmtBulanID(ym){
   const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
   return `${bulan[parseInt(m)-1]} ${y}`;
 }
+async function hashPassword(str){
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -611,8 +688,8 @@ function showToast(msg){
 }
 
 // ---------- STORAGE ----------
-// window.storage hanya tersedia di dalam Claude.ai. Jika aplikasi ini dijalankan
-// di luar Claude.ai (mis. di-hosting sendiri di GitHub Pages), otomatis pakai
+// window.storage hanya tersedia di dalam Claude.ai. Jika Supabase belum dikonfigurasi
+// dan aplikasi dijalankan di luar Claude.ai (mis. GitHub Pages), otomatis pakai
 // localStorage browser supaya data tetap bisa tersimpan.
 const useClaudeStorage = !!(window.storage && typeof window.storage.set === 'function');
 
@@ -628,52 +705,211 @@ async function storageSet(key, value, shared){
   return { key, value, shared };
 }
 
-async function loadAll(){
+// ---- mapping kolom Supabase (snake_case) <-> objek JS (camelCase) ----
+function mapSettingsToDb(s){
+  return {
+    id: 1,
+    admins: s.admins,
+    pegawai: s.pegawai,
+    gaji_inti: s.gajiInti,
+    gaji_helper: s.gajiHelper,
+    pct_peralatan: s.pctPeralatan,
+    pct_skabic: s.pctSkabic,
+    guru_nama: s.guruNama,
+    guru_nip: s.guruNip,
+    admin_password_hash: s.adminPasswordHash,
+    updated_at: new Date().toISOString()
+  };
+}
+function mapSettingsFromDb(row){
+  return {
+    admins: row.admins || DEFAULT_SETTINGS.admins,
+    pegawai: row.pegawai || DEFAULT_SETTINGS.pegawai,
+    gajiInti: Number(row.gaji_inti)||0,
+    gajiHelper: Number(row.gaji_helper)||0,
+    pctPeralatan: Number(row.pct_peralatan)||0,
+    pctSkabic: Number(row.pct_skabic)||0,
+    guruNama: row.guru_nama || '',
+    guruNip: row.guru_nip || '',
+    adminPasswordHash: row.admin_password_hash || ''
+  };
+}
+function mapRecordToDb(r){
+  return {
+    id: r.id, admin: r.admin, tanggal: r.tanggal,
+    jumlah_bahan: r.jumlahBahan, jumlah_dihasilkan: r.jumlahDihasilkan,
+    harga_satuan: r.hargaSatuan, harga_total: r.hargaTotal,
+    jumlah_terjual: r.jumlahTerjual, uang_masuk: r.uangMasuk,
+    uang_keluar_bahan: r.uangKeluarBahan, biaya_peralatan: r.biayaPeralatan,
+    pct_peralatan: r.pctPeralatan, staff_inti1: r.staffInti1,
+    staff_inti2: r.staffInti2, staff_helper: r.staffHelper,
+    staff_snapshot: r.staffSnapshot, gaji_pegawai: r.gajiPegawai,
+    gaji_inti_rate: r.gajiIntiRate, gaji_helper_rate: r.gajiHelperRate,
+    bonus_total: r.bonusTotal, bonus_per_orang: r.bonusPerOrang,
+    biaya_skabic: r.biayaSkabic, pct_skabic: r.pctSkabic,
+    laba: r.laba, saved_at: r.savedAt
+  };
+}
+function mapRecordFromDb(row){
+  return {
+    id: row.id, admin: row.admin, tanggal: row.tanggal,
+    jumlahBahan: Number(row.jumlah_bahan)||0, jumlahDihasilkan: Number(row.jumlah_dihasilkan)||0,
+    hargaSatuan: Number(row.harga_satuan)||0, hargaTotal: Number(row.harga_total)||0,
+    jumlahTerjual: Number(row.jumlah_terjual)||0, uangMasuk: Number(row.uang_masuk)||0,
+    uangKeluarBahan: Number(row.uang_keluar_bahan)||0, biayaPeralatan: Number(row.biaya_peralatan)||0,
+    pctPeralatan: Number(row.pct_peralatan)||0, staffInti1: row.staff_inti1 || '',
+    staffInti2: row.staff_inti2 || '', staffHelper: row.staff_helper || '',
+    staffSnapshot: row.staff_snapshot || [], gajiPegawai: Number(row.gaji_pegawai)||0,
+    gajiIntiRate: Number(row.gaji_inti_rate)||0, gajiHelperRate: Number(row.gaji_helper_rate)||0,
+    bonusTotal: Number(row.bonus_total)||0, bonusPerOrang: Number(row.bonus_per_orang)||0,
+    biayaSkabic: Number(row.biaya_skabic)||0, pctSkabic: Number(row.pct_skabic)||0,
+    laba: Number(row.laba)||0, savedAt: row.saved_at
+  };
+}
+
+async function refreshRiwayat(){
   try{
-    const s = await storageGet('settings', true);
-    if(s && s.value){
-      settings = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(s.value));
-    }else{
-      await storageSet('settings', JSON.stringify(settings), true);
+    if(supabaseClient){
+      const {data, error} = await supabaseClient.from('penjualan').select('*').order('tanggal', {ascending:false});
+      if(error) throw error;
+      riwayat = (data||[]).map(mapRecordFromDb);
+    } else {
+      const r = await storageGet('riwayat-penjualan', true);
+      riwayat = (r && r.value) ? JSON.parse(r.value) : [];
     }
-  }catch(e){
-    // key belum ada sama sekali -> buat baru dengan default
-    try{ await storageSet('settings', JSON.stringify(settings), true); }catch(e2){ console.error('gagal membuat settings awal', e2); }
+  }catch(e){ /* biarkan riwayat lokal apa adanya kalau gagal ambil data */ }
+}
+
+async function loadAll(){
+  let loaded = null;
+  try{
+    if(supabaseClient){
+      const {data, error} = await supabaseClient.from('settings').select('*').eq('id',1).maybeSingle();
+      if(error) throw error;
+      loaded = data ? mapSettingsFromDb(data) : null;
+    } else {
+      const s = await storageGet('settings', true);
+      loaded = (s && s.value) ? JSON.parse(s.value) : null;
+    }
+  }catch(e){ loaded = null; }
+
+  settings = loaded ? Object.assign({}, DEFAULT_SETTINGS, loaded) : JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  if(!settings.adminPasswordHash){
+    settings.adminPasswordHash = await hashPassword(DEFAULT_ADMIN_PASSWORD);
+  }
+  if(!loaded){
+    await persistSettings();
   }
 
-  try{
-    const r = await storageGet('riwayat-penjualan', true);
-    riwayat = (r && r.value) ? JSON.parse(r.value) : [];
-  }catch(e){ riwayat = []; }
+  await refreshRiwayat();
 
   const notice = document.getElementById('storageNotice');
   if(notice){
-    notice.textContent = useClaudeStorage
-      ? 'Data pengaturan & riwayat pada aplikasi ini tersimpan bersama (shared) — semua orang yang membuka aplikasi ini melihat & memakai data yang sama.'
-      : 'Aplikasi ini berjalan di luar Claude.ai, sehingga data pengaturan & riwayat disimpan secara lokal di browser perangkat ini. Data tidak otomatis tersinkron ke perangkat/browser lain.';
+    notice.textContent = supabaseClient
+      ? 'Data pengaturan & riwayat pada aplikasi ini tersimpan di database Supabase — semua siswa/admin yang membuka aplikasi ini memakai data yang sama secara real-time.'
+      : (useClaudeStorage
+          ? 'Data pengaturan & riwayat pada aplikasi ini tersimpan bersama (shared) di Claude.ai — semua orang yang membuka aplikasi ini melihat & memakai data yang sama.'
+          : 'Aplikasi ini belum terhubung ke Supabase, sehingga data disimpan secara lokal di browser perangkat ini saja.');
   }
 }
 async function persistSettings(){
-  try{ await storageSet('settings', JSON.stringify(settings), true); }
-  catch(e){ console.error(e); showToast('Gagal menyimpan pengaturan'); }
+  try{
+    if(supabaseClient){
+      const {error} = await supabaseClient.from('settings').upsert(mapSettingsToDb(settings));
+      if(error) throw error;
+    } else {
+      await storageSet('settings', JSON.stringify(settings), true);
+    }
+  }catch(e){ console.error(e); showToast('Gagal menyimpan pengaturan ke server'); }
 }
-async function persistRiwayat(){
-  try{ await storageSet('riwayat-penjualan', JSON.stringify(riwayat), true); }
-  catch(e){ console.error(e); showToast('Gagal menyimpan riwayat'); }
+async function persistRecord(record){
+  try{
+    if(supabaseClient){
+      const {error} = await supabaseClient.from('penjualan').upsert(mapRecordToDb(record));
+      if(error) throw error;
+    } else {
+      await storageSet('riwayat-penjualan', JSON.stringify(riwayat), true);
+    }
+  }catch(e){ console.error(e); showToast('Gagal menyimpan transaksi ke server'); }
 }
+async function deleteRecordRemote(id){
+  try{
+    if(supabaseClient){
+      const {error} = await supabaseClient.from('penjualan').delete().eq('id', id);
+      if(error) throw error;
+    } else {
+      await storageSet('riwayat-penjualan', JSON.stringify(riwayat), true);
+    }
+  }catch(e){ console.error(e); showToast('Gagal menghapus di server'); }
+}
+
+// ---------- PROTEKSI ADMIN (Pengaturan + Edit/Hapus Riwayat) ----------
+let adminUnlocked = sessionStorage.getItem('skanepa_admin_unlocked') === '1';
+let pwResolveCallback = null;
+
+function openPasswordModal(onSuccess){
+  pwResolveCallback = onSuccess;
+  document.getElementById('pwModalInput').value = '';
+  document.getElementById('pwModalError').textContent = '';
+  document.getElementById('pwModalOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('pwModalInput').focus(), 50);
+}
+function closePasswordModal(){
+  document.getElementById('pwModalOverlay').classList.remove('show');
+  pwResolveCallback = null;
+}
+function requireAdmin(onSuccess){
+  if(adminUnlocked){ onSuccess(); return; }
+  openPasswordModal(onSuccess);
+}
+async function submitPasswordModal(){
+  const val = document.getElementById('pwModalInput').value;
+  const hash = await hashPassword(val);
+  if(hash === settings.adminPasswordHash){
+    adminUnlocked = true;
+    sessionStorage.setItem('skanepa_admin_unlocked','1');
+    const cb = pwResolveCallback;
+    closePasswordModal();
+    if(cb) cb();
+  }else{
+    document.getElementById('pwModalError').textContent = 'Kata sandi salah, coba lagi.';
+  }
+}
+document.getElementById('pwModalCancel').addEventListener('click', closePasswordModal);
+document.getElementById('pwModalSubmit').addEventListener('click', submitPasswordModal);
+document.getElementById('pwModalInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitPasswordModal(); });
+document.getElementById('btnLockAdmin').addEventListener('click', ()=>{
+  adminUnlocked = false;
+  sessionStorage.removeItem('skanepa_admin_unlocked');
+  showToast('Mode admin dikunci');
+  document.querySelector('.bottom-nav button[data-view="input"]').click();
+});
 
 // ---------- NAV ----------
 document.querySelectorAll('.bottom-nav button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    document.getElementById('view-'+btn.dataset.view).classList.add('active');
-    if(btn.dataset.view === 'riwayat') renderRiwayatList();
-    if(btn.dataset.view === 'pengaturan') renderSettingsForm();
-    if(btn.dataset.view === 'input') resetInputForm();
+    if(btn.dataset.view === 'pengaturan'){
+      requireAdmin(()=> switchView(btn));
+    }else{
+      switchView(btn);
+    }
   });
 });
+async function switchView(btn){
+  document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  if(btn.dataset.view === 'riwayat'){
+    await refreshRiwayat();
+    renderRiwayatList();
+  }
+  if(btn.dataset.view === 'pengaturan') renderSettingsForm();
+  if(btn.dataset.view === 'input'){
+    await refreshRiwayat();
+    resetInputForm();
+  }
+}
 
 // ---------- INPUT PENJUALAN ----------
 const elAdminFieldWrap = document.getElementById('adminFieldWrap');
@@ -861,7 +1097,7 @@ document.getElementById('btnSimpan').addEventListener('click', async ()=>{
 
   const idx = riwayat.findIndex(r=>r.id===record.id);
   if(idx>=0) riwayat[idx] = record; else riwayat.push(record);
-  await persistRiwayat();
+  await persistRecord(record);
   showToast('Transaksi tersimpan');
 });
 
@@ -889,22 +1125,26 @@ function renderRiwayatList(){
 
   wrap.querySelectorAll('[data-act="edit"]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      const rec = riwayat.find(x=>x.id===b.dataset.id);
-      if(!rec) return;
-      document.querySelector('.bottom-nav button[data-view="input"]').click();
-      elAdmin.value = rec.admin;
-      onAdminChange();
-      elTanggal.value = rec.tanggal;
-      loadRecordForCurrentSelection();
+      requireAdmin(()=>{
+        const rec = riwayat.find(x=>x.id===b.dataset.id);
+        if(!rec) return;
+        document.querySelector('.bottom-nav button[data-view="input"]').click();
+        elAdmin.value = rec.admin;
+        onAdminChange();
+        elTanggal.value = rec.tanggal;
+        loadRecordForCurrentSelection();
+      });
     });
   });
   wrap.querySelectorAll('[data-act="del"]').forEach(b=>{
-    b.addEventListener('click', async ()=>{
-      if(!confirm('Hapus riwayat ini?')) return;
-      riwayat = riwayat.filter(x=>x.id!==b.dataset.id);
-      await persistRiwayat();
-      renderRiwayatList();
-      showToast('Riwayat dihapus');
+    b.addEventListener('click', ()=>{
+      requireAdmin(async ()=>{
+        if(!confirm('Hapus riwayat ini?')) return;
+        riwayat = riwayat.filter(x=>x.id!==b.dataset.id);
+        await deleteRecordRemote(b.dataset.id);
+        renderRiwayatList();
+        showToast('Riwayat dihapus');
+      });
     });
   });
 }
@@ -1177,6 +1417,16 @@ document.getElementById('btnSaveSettings').addEventListener('click', async ()=>{
   settings.pctSkabic = Number(document.getElementById('pctSkabicInput').value)||0;
   settings.guruNama = document.getElementById('guruNamaInput').value.trim();
   settings.guruNip = document.getElementById('guruNipInput').value.trim();
+
+  const newPw = document.getElementById('newAdminPasswordInput').value;
+  const newPwConfirm = document.getElementById('newAdminPasswordConfirm').value;
+  if(newPw || newPwConfirm){
+    if(newPw.length < 4){ showToast('Kata sandi baru minimal 4 karakter'); return; }
+    if(newPw !== newPwConfirm){ showToast('Ulangi kata sandi tidak cocok'); return; }
+    settings.adminPasswordHash = await hashPassword(newPw);
+    document.getElementById('newAdminPasswordInput').value = '';
+    document.getElementById('newAdminPasswordConfirm').value = '';
+  }
 
   await persistSettings();
   populateAdminSelects();
