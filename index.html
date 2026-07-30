@@ -527,6 +527,7 @@
       </div>
 
       <div class="divider-label">Daftar Riwayat (terbaru dahulu)</div>
+      <div id="riwayatAdminBar" style="display:flex;justify-content:flex-end;margin-bottom:8px;"></div>
       <div id="riwayatList"></div>
     </section>
 
@@ -1142,7 +1143,22 @@ document.getElementById('btnSimpan').addEventListener('click', async ()=>{
 });
 
 // ---------- RIWAYAT ----------
+function renderAdminBar(){
+  const bar = document.getElementById('riwayatAdminBar');
+  if(!bar) return;
+  if(adminUnlocked){
+    bar.innerHTML = `<span style="font-size:11.5px;color:var(--positive);font-weight:700;">Mode admin aktif — bisa ubah/hapus riwayat</span>`;
+  }else{
+    bar.innerHTML = `<button class="btn-small" id="btnUnlockAdminRiwayat">Masuk sebagai Admin</button>`;
+    const btn = document.getElementById('btnUnlockAdminRiwayat');
+    if(btn) btn.addEventListener('click', ()=>{
+      requireAdmin(()=>{ renderAdminBar(); renderRiwayatList(); });
+    });
+  }
+}
+
 function renderRiwayatList(){
+  renderAdminBar();
   const wrap = document.getElementById('riwayatList');
   const sorted = [...riwayat].sort((a,b)=> b.tanggal.localeCompare(a.tanggal) || a.admin.localeCompare(b.admin));
   if(sorted.length===0){
@@ -1156,12 +1172,15 @@ function renderRiwayatList(){
         <div class="rw-date">${fmtDateID(r.tanggal)}</div>
       </div>
       <div class="rw-laba">LABA ${rp(r.laba)}</div>
+      ${adminUnlocked ? `
       <div class="rw-actions">
         <button class="btn-small" data-act="edit" data-id="${r.id}">Buka di Input</button>
         <button class="btn-small" style="background:var(--danger-bg);color:var(--danger);" data-act="del" data-id="${r.id}">Hapus</button>
-      </div>
+      </div>` : ''}
     </div>
   `).join('');
+
+  if(!adminUnlocked) return;
 
   wrap.querySelectorAll('[data-act="edit"]').forEach(b=>{
     b.addEventListener('click', ()=>{
