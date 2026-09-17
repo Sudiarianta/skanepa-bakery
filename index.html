@@ -493,8 +493,8 @@
           <div class="bl-val" id="calcBonus">Rp 0</div>
         </div>
         <div class="breakdown-line bl-minus">
-          <div class="bl-label" id="lblSkabic">Biaya Skabic<small>persen dari uang masuk</small></div>
-          <div class="bl-val" id="calcSkabic">Rp 0</div>
+          <div class="bl-label" id="lblBiayaAlat">Biaya Alat<small>nominal tetap per hari</small></div>
+          <div class="bl-val" id="calcBiayaAlat">Rp 0</div>
         </div>
       </div>
 
@@ -566,15 +566,15 @@
       </div>
 
       <div class="card">
-        <h3>Persentase Biaya</h3>
+        <h3>Biaya Peralatan &amp; Biaya Alat</h3>
         <div class="row2">
           <div>
             <label>Biaya Peralatan (%)</label>
             <input type="number" min="0" max="100" step="0.1" id="pctPeralatanInput">
           </div>
           <div>
-            <label>Biaya Skabic (%)</label>
-            <input type="number" min="0" max="100" step="0.1" id="pctSkabicInput">
+            <label>Biaya Alat (Rp)</label>
+            <input type="number" min="0" step="500" id="biayaAlatInput">
           </div>
         </div>
       </div>
@@ -647,7 +647,7 @@ const DEFAULT_SETTINGS = {
   gajiInti: 50000,
   gajiHelper: 30000,
   pctPeralatan: 30,
-  pctSkabic: 2,
+  biayaAlat: 50000,
   guruNama: "",
   guruNip: "",
   adminPasswordHash: ""
@@ -716,7 +716,7 @@ function mapSettingsToDb(s){
     gaji_inti: s.gajiInti,
     gaji_helper: s.gajiHelper,
     pct_peralatan: s.pctPeralatan,
-    pct_skabic: s.pctSkabic,
+    biaya_alat: s.biayaAlat,
     guru_nama: s.guruNama,
     guru_nip: s.guruNip,
     admin_password_hash: s.adminPasswordHash,
@@ -730,7 +730,7 @@ function mapSettingsFromDb(row){
     gajiInti: Number(row.gaji_inti)||0,
     gajiHelper: Number(row.gaji_helper)||0,
     pctPeralatan: Number(row.pct_peralatan)||0,
-    pctSkabic: Number(row.pct_skabic)||0,
+    biayaAlat: (row.biaya_alat !== null && row.biaya_alat !== undefined) ? Number(row.biaya_alat) : DEFAULT_SETTINGS.biayaAlat,
     guruNama: row.guru_nama || '',
     guruNip: row.guru_nip || '',
     adminPasswordHash: row.admin_password_hash || ''
@@ -748,7 +748,7 @@ function mapRecordToDb(r){
     staff_snapshot: r.staffSnapshot, gaji_pegawai: r.gajiPegawai,
     gaji_inti_rate: r.gajiIntiRate, gaji_helper_rate: r.gajiHelperRate,
     bonus_total: r.bonusTotal, bonus_per_orang: r.bonusPerOrang,
-    biaya_skabic: r.biayaSkabic, pct_skabic: r.pctSkabic,
+    biaya_skabic: r.biayaSkabic, pct_skabic: r.pctSkabic, biaya_alat: r.biayaAlat,
     laba: r.laba, saved_at: r.savedAt
   };
 }
@@ -765,8 +765,19 @@ function mapRecordFromDb(row){
     gajiIntiRate: Number(row.gaji_inti_rate)||0, gajiHelperRate: Number(row.gaji_helper_rate)||0,
     bonusTotal: Number(row.bonus_total)||0, bonusPerOrang: Number(row.bonus_per_orang)||0,
     biayaSkabic: Number(row.biaya_skabic)||0, pctSkabic: Number(row.pct_skabic)||0,
+    biayaAlat: (row.biaya_alat !== null && row.biaya_alat !== undefined) ? Number(row.biaya_alat) : undefined,
     laba: Number(row.laba)||0, savedAt: row.saved_at
   };
+}
+
+// Data riwayat lama masih pakai field biayaSkabic/pctSkabic (belum ada biayaAlat).
+// Fungsi ini menjaga supaya data lama tetap terbaca & tampil benar sebagai "Biaya Alat"
+// tanpa mengubah nilai yang sudah tersimpan.
+function normalizeRecord(rec){
+  if(rec.biayaAlat === undefined || rec.biayaAlat === null){
+    rec.biayaAlat = (rec.biayaSkabic !== undefined && rec.biayaSkabic !== null) ? Number(rec.biayaSkabic) : 0;
+  }
+  return rec;
 }
 
 async function refreshRiwayat(){
@@ -774,10 +785,10 @@ async function refreshRiwayat(){
     if(supabaseClient){
       const {data, error} = await supabaseClient.from('penjualan').select('*').order('tanggal', {ascending:false});
       if(error) throw error;
-      riwayat = (data||[]).map(mapRecordFromDb);
+      riwayat = (data||[]).map(mapRecordFromDb).map(normalizeRecord);
     } else {
       const r = await storageGet('riwayat-penjualan', true);
-      riwayat = (r && r.value) ? JSON.parse(r.value) : [];
+      riwayat = (r && r.value) ? JSON.parse(r.value).map(normalizeRecord) : [];
     }
   }catch(e){ /* biarkan riwayat lokal apa adanya kalau gagal ambil data */ }
 }
@@ -1058,9 +1069,9 @@ function recalc(){
   const bonusPerOrang = staff.length ? bonusTotal / staff.length : 0;
 
   const biayaPeralatan = uangMasuk * (Number(settings.pctPeralatan||0)/100);
-  const biayaSkabic = uangMasuk * (Number(settings.pctSkabic||0)/100);
+  const biayaAlat = Number(settings.biayaAlat||0);
 
-  const laba = uangMasuk - uangKeluarBahan - biayaPeralatan - gajiPegawai - bonusTotal - biayaSkabic;
+  const laba = uangMasuk - uangKeluarBahan - biayaPeralatan - gajiPegawai - bonusTotal - biayaAlat;
 
   // staff pay list card
   const payWrap = document.getElementById('staffPayList');
@@ -1086,12 +1097,12 @@ function recalc(){
   document.getElementById('calcGaji').textContent = rp(gajiPegawai);
   document.getElementById('lblBonus').innerHTML = `Bonus Pegawai<small>${jumlahTerjual} roti × ${rp(BONUS_MULTIPLIER)}, dibagi ${staff.length||0} pegawai</small>`;
   document.getElementById('calcBonus').textContent = rp(bonusTotal);
-  document.getElementById('lblSkabic').innerHTML = `Biaya Skabic<small>${settings.pctSkabic}% dari uang masuk</small>`;
-  document.getElementById('calcSkabic').textContent = rp(biayaSkabic);
+  document.getElementById('lblBiayaAlat').innerHTML = `Biaya Alat<small>nominal tetap per hari</small>`;
+  document.getElementById('calcBiayaAlat').textContent = rp(biayaAlat);
   document.getElementById('calcLaba').textContent = rp(laba);
 
   return {hargaSatuan, jumlahDihasilkan, hargaTotal, jumlahTerjual, uangMasuk, uangKeluarBahan,
-    biayaPeralatan, gajiPegawai, bonusTotal, bonusPerOrang, biayaSkabic, laba, staff, hasDupeStaff};
+    biayaPeralatan, gajiPegawai, bonusTotal, bonusPerOrang, biayaAlat, laba, staff, hasDupeStaff};
 }
 
 [elJumlahBahan, elJumlahDihasilkan, elHargaSatuan, elJumlahTerjual, elUangKeluarBahan, elStaffInti1, elStaffInti2, elStaffHelper].forEach(el=>{
@@ -1130,8 +1141,7 @@ document.getElementById('btnSimpan').addEventListener('click', async ()=>{
     gajiHelperRate: settings.gajiHelper,
     bonusTotal: c.bonusTotal,
     bonusPerOrang: c.bonusPerOrang,
-    biayaSkabic: c.biayaSkabic,
-    pctSkabic: settings.pctSkabic,
+    biayaAlat: c.biayaAlat,
     laba: c.laba,
     savedAt: new Date().toISOString()
   };
@@ -1274,7 +1284,7 @@ function generatePDF(rec){
     ['Biaya Peralatan (' + rec.pctPeralatan + '%)', '- ' + rp(rec.biayaPeralatan)],
     ['Gaji Pegawai (total)', '- ' + rp(rec.gajiPegawai)],
     ['Bonus Pegawai (total)', '- ' + rp(rec.bonusTotal)],
-    ['Biaya Skabic (' + rec.pctSkabic + '%)', '- ' + rp(rec.biayaSkabic)],
+    ['Biaya Alat', '- ' + rp(rec.biayaAlat)],
   ];
 
   doc.autoTable({
@@ -1355,7 +1365,7 @@ function generateMonthlyPDF(bulan, records){
 
   let totalMasuk = 0, totalKeluar = 0, totalLaba = 0;
   const rows = records.map(r=>{
-    const pengeluaran = r.uangKeluarBahan + r.biayaPeralatan + r.gajiPegawai + r.bonusTotal + r.biayaSkabic;
+    const pengeluaran = r.uangKeluarBahan + r.biayaPeralatan + r.gajiPegawai + r.bonusTotal + r.biayaAlat;
     totalMasuk += r.uangMasuk;
     totalKeluar += pengeluaran;
     totalLaba += r.laba;
@@ -1447,7 +1457,7 @@ function renderSettingsForm(){
   document.getElementById('gajiIntiInput').value = settings.gajiInti;
   document.getElementById('gajiHelperInput').value = settings.gajiHelper;
   document.getElementById('pctPeralatanInput').value = settings.pctPeralatan;
-  document.getElementById('pctSkabicInput').value = settings.pctSkabic;
+  document.getElementById('biayaAlatInput').value = settings.biayaAlat;
   document.getElementById('guruNamaInput').value = settings.guruNama;
   document.getElementById('guruNipInput').value = settings.guruNip;
 }
@@ -1475,7 +1485,7 @@ document.getElementById('btnSaveSettings').addEventListener('click', async ()=>{
   settings.gajiInti = Number(document.getElementById('gajiIntiInput').value)||0;
   settings.gajiHelper = Number(document.getElementById('gajiHelperInput').value)||0;
   settings.pctPeralatan = Number(document.getElementById('pctPeralatanInput').value)||0;
-  settings.pctSkabic = Number(document.getElementById('pctSkabicInput').value)||0;
+  settings.biayaAlat = Number(document.getElementById('biayaAlatInput').value)||0;
   settings.guruNama = document.getElementById('guruNamaInput').value.trim();
   settings.guruNip = document.getElementById('guruNipInput').value.trim();
 
