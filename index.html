@@ -780,6 +780,17 @@ function normalizeRecord(rec){
   return rec;
 }
 
+// Biaya Alat & LABA riwayat lama dihitung ULANG memakai nilai Biaya Alat
+// TERKINI dari Pengaturan (bukan nilai yang dibekukan saat transaksi disimpan
+// dulu). Jadi kalau admin ubah nominal Biaya Alat, semua riwayat & PDF bulan
+// sebelumnya ikut menyesuaikan secara otomatis.
+function liveBiayaAlat(){
+  return Number(settings.biayaAlat||0);
+}
+function liveLaba(rec){
+  return rec.uangMasuk - rec.uangKeluarBahan - rec.biayaPeralatan - rec.gajiPegawai - rec.bonusTotal - liveBiayaAlat();
+}
+
 async function refreshRiwayat(){
   try{
     if(supabaseClient){
@@ -1181,7 +1192,7 @@ function renderRiwayatList(){
         <div class="rw-name">${r.admin}</div>
         <div class="rw-date">${fmtDateID(r.tanggal)}</div>
       </div>
-      <div class="rw-laba">LABA ${rp(r.laba)}</div>
+      <div class="rw-laba">LABA ${rp(liveLaba(r))}</div>
       ${adminUnlocked ? `
       <div class="rw-actions">
         <button class="btn-small" data-act="edit" data-id="${r.id}">Buka di Input</button>
@@ -1284,7 +1295,7 @@ function generatePDF(rec){
     ['Biaya Peralatan (' + rec.pctPeralatan + '%)', '- ' + rp(rec.biayaPeralatan)],
     ['Gaji Pegawai (total)', '- ' + rp(rec.gajiPegawai)],
     ['Bonus Pegawai (total)', '- ' + rp(rec.bonusTotal)],
-    ['Biaya Alat', '- ' + rp(rec.biayaAlat)],
+    ['Biaya Alat', '- ' + rp(liveBiayaAlat())],
   ];
 
   doc.autoTable({
@@ -1320,7 +1331,7 @@ function generatePDF(rec){
   doc.setFontSize(12);
   doc.setTextColor(31,42,56);
   doc.text('LABA', marginX+4, y+8);
-  doc.text(rp(rec.laba), pageW-marginX-4, y+8, {align:'right'});
+  doc.text(rp(liveLaba(rec)), pageW-marginX-4, y+8, {align:'right'});
   doc.setTextColor(0,0,0);
 
   y += 26;
@@ -1365,17 +1376,18 @@ function generateMonthlyPDF(bulan, records){
 
   let totalMasuk = 0, totalKeluar = 0, totalLaba = 0;
   const rows = records.map(r=>{
-    const pengeluaran = r.uangKeluarBahan + r.biayaPeralatan + r.gajiPegawai + r.bonusTotal + r.biayaAlat;
+    const pengeluaran = r.uangKeluarBahan + r.biayaPeralatan + r.gajiPegawai + r.bonusTotal + liveBiayaAlat();
+    const labaHari = liveLaba(r);
     totalMasuk += r.uangMasuk;
     totalKeluar += pengeluaran;
-    totalLaba += r.laba;
+    totalLaba += labaHari;
     return [
       fmtDateID(r.tanggal).replace(' '+bulan.split('-')[0],''),
       r.admin,
       r.jumlahTerjual + ' pcs',
       rp(r.uangMasuk),
       rp(pengeluaran),
-      rp(r.laba)
+      rp(labaHari)
     ];
   });
 
