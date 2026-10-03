@@ -562,20 +562,22 @@
         <label>Tanggal</label>
         <input type="date" id="pengeluaranTanggal">
 
-        <div class="breakdown-line">
-          <div class="bl-label">Laba Bulan <span id="pengLabaBulanLabel">-</span><small>dari Input Penjualan, sebelum dipotong</small></div>
-          <div class="bl-val" id="pengLabaBulanValue">Rp 0</div>
+        <div class="receipt" id="pengLabaBulanBox">
+          <div class="rlabel">Laba Bulan <span id="pengLabaBulanLabel">-</span> · dari Input Penjualan</div>
+          <div class="ramount" id="pengLabaBulanValue">Rp 0</div>
         </div>
+
         <div class="breakdown-line bl-minus">
           <div class="bl-label">Pengeluaran Tercatat Bulan Ini<small>belum termasuk baris yang sedang diisi</small></div>
           <div class="bl-val" id="pengTotalBulanValue">Rp 0</div>
         </div>
-        <div class="breakdown-line">
-          <div class="bl-label" style="font-weight:700;color:var(--primary-dark);">Sisa Laba Bersih Bulan Ini</div>
-          <div class="bl-val" id="pengSisaLabaValue" style="font-weight:700;color:var(--primary-dark);">Rp 0</div>
+
+        <div class="laba-box" id="pengSisaLabaBox" style="margin:10px 0 14px;">
+          <div class="ll">SISA LABA BERSIH BULAN INI</div>
+          <div class="lv" id="pengSisaLabaValue">Rp 0</div>
         </div>
 
-        <button class="btn-small" id="btnTambahBarisPengeluaran" style="margin:14px 0 10px;">+ Tambah Baris</button>
+        <button class="btn-small" id="btnTambahBarisPengeluaran" style="margin-bottom:10px;">+ Tambah Baris</button>
         <div id="pengeluaranRows"></div>
 
         <button class="btn-primary" id="btnSimpanPengeluaran" style="margin-top:12px;">Simpan Pengeluaran</button>
@@ -899,6 +901,34 @@ async function deleteExpenseRemote(id){
   }catch(e){ console.error(e); showToast('Gagal menghapus pengeluaran di server'); }
 }
 
+// ---------- REALTIME SYNC (khusus kalau Supabase aktif) ----------
+// Supaya kotak "Laba Bulan Ini" dan "Sisa Laba Bersih Bulan Ini" di menu
+// Pengeluaran ikut berubah otomatis begitu ADA data penjualan/pengeluaran baru
+// dari perangkat lain — tanpa perlu reload halaman. Ini butuh Realtime
+// diaktifkan untuk tabel "penjualan" & "pengeluaran_lain" di Supabase
+// (lihat catatan SQL yang diberikan).
+function setupRealtimeSync(){
+  if(!supabaseClient) return; // tanpa Supabase, sinkron real-time antar perangkat tidak memungkinkan
+
+  supabaseClient
+    .channel('penjualan-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'penjualan' }, async ()=>{
+      await refreshRiwayat();
+      updatePengeluaranSummary();
+      if(document.getElementById('view-riwayat').classList.contains('active')) renderRiwayatList();
+    })
+    .subscribe();
+
+  supabaseClient
+    .channel('pengeluaran-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pengeluaran_lain' }, async ()=>{
+      await refreshPengeluaran();
+      updatePengeluaranSummary();
+      if(document.getElementById('view-pengeluaran').classList.contains('active')) renderPengeluaranList();
+    })
+    .subscribe();
+}
+
 async function refreshRiwayat(){
   try{
     if(supabaseClient){
@@ -1063,8 +1093,10 @@ async function switchView(btn){
     renderRiwayatList();
   }
   if(btn.dataset.view === 'pengeluaran'){
+    await refreshRiwayat();
     await refreshPengeluaran();
     renderPengeluaranList();
+    updatePengeluaranSummary();
   }
   if(btn.dataset.view === 'pengaturan'){
     await refreshSettings();
@@ -1381,14 +1413,41 @@ function addPengeluaranRow(){
 }
 document.getElementById('btnTambahBarisPengeluaran').addEventListener('click', addPengeluaranRow);
 
-function updatePengeluaranBulanNotice(){
-  const tanggal = document.getElementById('pengeluaranTanggal').value;
-  const notice = document.getElementById('pengeluaranBulanNotice');
-  notice.textContent = tanggal
-    ? `Pengeluaran ini akan mengurangi "Laba Bersih Bulan Ini" pada Rekap Bulanan bulan ${fmtBulanID(tanggal.slice(0,7))}.`
-    : '';
+// Jumlah laba satu bulan, dihitung dari seluruh riwayat Input Penjualan bulan itu
+// (memakai liveLaba supaya ikut pakai nominal Biaya Alat terkini, tapi TIDAK
+// mengubah data/angka laba yang tersimpan di menu Input Penjualan atau Riwayat).
+function sumLabaBulan(bulan){
+  return riwayat.filter(r=>r.tanggal.startsWith(bulan)).reduce((sum,r)=> sum + liveLaba(r), 0);
 }
-document.getElementById('pengeluaranTanggal').addEventListener('change', updatePengeluaranBulanNotice);
+function sumPengeluaranBulan(bulan){
+  return pengeluaranList.filter(e=>e.tanggal.startsWith(bulan)).reduce((sum,e)=> sum + e.nominal, 0);
+}
+
+// Kotak Laba Bulan Ini & Sisa Laba Bersih di menu Pengeluaran — selalu dihitung
+// ulang dari data terkini (riwayat & pengeluaranList di memori), jadi otomatis
+// jadi Rp 0 begitu masuk bulan baru yang belum ada datanya, dan otomatis
+// berubah tiap ada transaksi/pengeluaran baru (lihat setupRealtimeSync).
+function updatePengeluaranSummary(){
+  const tanggal = document.getElementById('pengeluaranTanggal').value;
+  const labelEl = document.getElementById('pengLabaBulanLabel');
+  const labaEl = document.getElementById('pengLabaBulanValue');
+  const totalPengEl = document.getElementById('pengTotalBulanValue');
+  const sisaEl = document.getElementById('pengSisaLabaValue');
+  if(!tanggal){
+    labelEl.textContent = '-'; labaEl.textContent = rp(0);
+    totalPengEl.textContent = rp(0); sisaEl.textContent = rp(0);
+    return;
+  }
+  const bulan = tanggal.slice(0,7);
+  const labaBulan = sumLabaBulan(bulan);
+  const totalPengBulan = sumPengeluaranBulan(bulan);
+  const sisa = labaBulan - totalPengBulan;
+  labelEl.textContent = fmtBulanID(bulan);
+  labaEl.textContent = rp(labaBulan);
+  totalPengEl.textContent = rp(totalPengBulan);
+  sisaEl.textContent = rp(sisa);
+}
+document.getElementById('pengeluaranTanggal').addEventListener('change', updatePengeluaranSummary);
 
 document.getElementById('btnSimpanPengeluaran').addEventListener('click', async ()=>{
   const tanggal = document.getElementById('pengeluaranTanggal').value;
@@ -1415,6 +1474,7 @@ document.getElementById('btnSimpanPengeluaran').addEventListener('click', async 
   document.getElementById('pengeluaranRows').innerHTML = '';
   addPengeluaranRow();
   renderPengeluaranList();
+  updatePengeluaranSummary();
   showToast(`${newExpenses.length} pengeluaran tersimpan`);
 });
 
@@ -1459,6 +1519,7 @@ function renderPengeluaranList(){
         pengeluaranList = pengeluaranList.filter(x=>x.id!==b.dataset.id);
         await deleteExpenseRemote(b.dataset.id);
         renderPengeluaranList();
+        updatePengeluaranSummary();
         showToast('Pengeluaran dihapus');
       });
     });
@@ -1878,11 +1939,12 @@ async function init(){
   document.getElementById('pengeluaranPdfTanggal').value = todayStr();
   document.getElementById('pengeluaranRekapBulan').value = todayStr().slice(0,7);
   addPengeluaranRow();
-  updatePengeluaranBulanNotice();
+  updatePengeluaranSummary();
   renderSettingsForm();
   renderRiwayatList();
   renderPengeluaranList();
   resetInputForm();
+  setupRealtimeSync();
 }
 init();
 
