@@ -1537,9 +1537,11 @@ document.getElementById('btnDownloadPengeluaranHarian').addEventListener('click'
 document.getElementById('btnDownloadPengeluaranBulanan').addEventListener('click', async ()=>{
   const bulan = document.getElementById('pengeluaranRekapBulan').value;
   if(!bulan){ showToast('Pilih bulan dulu'); return; }
+  await refreshRiwayat();
   await refreshPengeluaran();
+  // Tetap generate PDF walau tidak ada pengeluaran bulan itu, supaya setiap
+  // bulan selalu punya rekapnya sendiri (nominalnya akan tampil Rp 0).
   const items = pengeluaranList.filter(e=>e.tanggal.startsWith(bulan)).sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
-  if(items.length===0){ showToast('Tidak ada pengeluaran pada bulan tsb'); return; }
   generateExpenseMonthlyPDF(bulan, items);
 });
 
@@ -1598,8 +1600,10 @@ function generateExpenseMonthlyPDF(bulan, items){
   doc.setDrawColor(47,93,138); doc.setLineWidth(0.6);
   doc.line(marginX, 28, pageW-marginX, 28);
 
-  const rows = items.map(e=>[fmtDateID(e.tanggal).replace(' '+bulan.split('-')[0],''), e.keterangan, rp(e.nominal)]);
   const total = items.reduce((s,e)=>s+e.nominal,0);
+  const rows = items.length
+    ? items.map(e=>[fmtDateID(e.tanggal).replace(' '+bulan.split('-')[0],''), e.keterangan, rp(e.nominal)])
+    : [['-', 'Tidak ada pengeluaran tercatat bulan ini', rp(0)]];
 
   doc.autoTable({
     startY: 33,
@@ -1614,7 +1618,27 @@ function generateExpenseMonthlyPDF(bulan, items){
     margin: { left: marginX, right: marginX }
   });
 
-  let y = doc.lastAutoTable.finalY + 26;
+  // Konteks tambahan: Laba bulan ini (dari Input Penjualan) & Sisa Laba Bersih,
+  // supaya rekap pengeluaran tetap informatif walau nominalnya nol.
+  let y = doc.lastAutoTable.finalY + 8;
+  if(y > 250){ doc.addPage(); y = 20; }
+  const labaBulan = sumLabaBulan(bulan);
+  const sisaLaba = labaBulan - total;
+
+  doc.setFillColor(234,241,248);
+  doc.rect(marginX, y, pageW-marginX*2, 11, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(31,42,56);
+  doc.text('Laba Bulan Ini (dari Input Penjualan)', marginX+4, y+7.5);
+  doc.text(rp(labaBulan), pageW-marginX-4, y+7.5, {align:'right'});
+  y += 13;
+
+  doc.setFillColor(230,244,236);
+  doc.rect(marginX, y, pageW-marginX*2, 11, 'F');
+  doc.text('Sisa Laba Bersih Bulan Ini', marginX+4, y+7.5);
+  doc.text(rp(sisaLaba), pageW-marginX-4, y+7.5, {align:'right'});
+  doc.setTextColor(0,0,0);
+  y += 24;
+
   if(y > 255){ doc.addPage(); y = 30; }
   drawSignature(doc, y, pageW, marginX);
   doc.save(`Pengeluaran-Bulanan-Skanepa-${bulan}.pdf`);
