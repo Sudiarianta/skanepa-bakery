@@ -271,6 +271,28 @@
   .add-row{display:flex;gap:8px;}
   .add-row input{margin-bottom:0;flex:1;}
 
+  .pengeluaran-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+    align-items:center;
+  }
+  .pengeluaran-row .peng-keterangan{flex:2;margin-bottom:0;}
+  .pengeluaran-row .peng-nominal{flex:1;margin-bottom:0;}
+  .pengeluaran-row .peng-row-del{
+    background:var(--danger-bg);
+    color:var(--danger);
+    border-radius:8px;
+    padding:10px 11px;
+    font-size:14px;
+    flex:none;
+  }
+
+  .pengeluaran-row{display:flex;gap:8px;margin-bottom:10px;align-items:center;}
+  .pengeluaran-row input[type=text]{flex:2;margin-bottom:0;}
+  .pengeluaran-row input[type=number]{flex:1;margin-bottom:0;}
+  .pengeluaran-row .btn-del-row{background:none;color:var(--danger);font-size:18px;padding:2px 6px;flex:none;}
+
   .empty-state{
     text-align:center;
     padding:30px 10px;
@@ -531,6 +553,50 @@
       <div id="riwayatList"></div>
     </section>
 
+    <!-- ================= PENGELUARAN ================= -->
+    <section id="view-pengeluaran" class="view">
+      <h2 class="section-title">Pengeluaran</h2>
+
+      <div class="card">
+        <h3>Catat Pengeluaran Tak Terduga</h3>
+        <label>Tanggal</label>
+        <input type="date" id="pengeluaranTanggal">
+
+        <div class="breakdown-line">
+          <div class="bl-label">Laba Bulan <span id="pengLabaBulanLabel">-</span><small>dari Input Penjualan, sebelum dipotong</small></div>
+          <div class="bl-val" id="pengLabaBulanValue">Rp 0</div>
+        </div>
+        <div class="breakdown-line bl-minus">
+          <div class="bl-label">Pengeluaran Tercatat Bulan Ini<small>belum termasuk baris yang sedang diisi</small></div>
+          <div class="bl-val" id="pengTotalBulanValue">Rp 0</div>
+        </div>
+        <div class="breakdown-line">
+          <div class="bl-label" style="font-weight:700;color:var(--primary-dark);">Sisa Laba Bersih Bulan Ini</div>
+          <div class="bl-val" id="pengSisaLabaValue" style="font-weight:700;color:var(--primary-dark);">Rp 0</div>
+        </div>
+
+        <button class="btn-small" id="btnTambahBarisPengeluaran" style="margin:14px 0 10px;">+ Tambah Baris</button>
+        <div id="pengeluaranRows"></div>
+
+        <button class="btn-primary" id="btnSimpanPengeluaran" style="margin-top:12px;">Simpan Pengeluaran</button>
+      </div>
+
+      <div class="card">
+        <h3>Unduh Riwayat Pengeluaran</h3>
+        <label>Tanggal (unduh laporan harian)</label>
+        <input type="date" id="pengeluaranPdfTanggal">
+        <button class="btn-primary" id="btnDownloadPengeluaranHarian">Unduh PDF Harian</button>
+
+        <label style="margin-top:14px;">Pilih Bulan (rekap bulanan)</label>
+        <input type="month" id="pengeluaranRekapBulan">
+        <button class="btn-primary" id="btnDownloadPengeluaranBulanan">Unduh Rekap Bulanan</button>
+      </div>
+
+      <div class="divider-label">Daftar Riwayat Pengeluaran (terbaru dahulu)</div>
+      <div id="pengeluaranAdminBar" style="display:flex;justify-content:flex-end;margin-bottom:8px;"></div>
+      <div id="pengeluaranList"></div>
+    </section>
+
     <!-- ================= PENGATURAN ================= -->
     <section id="view-pengaturan" class="view">
       <h2 class="section-title">Pengaturan</h2>
@@ -604,6 +670,7 @@
   <nav class="bottom-nav">
     <button data-view="input" class="active"><span class="nav-ic"></span>Input</button>
     <button data-view="riwayat"><span class="nav-ic"></span>Riwayat</button>
+    <button data-view="pengeluaran"><span class="nav-ic"></span>Pengeluaran</button>
     <button data-view="pengaturan"><span class="nav-ic"></span>Pengaturan</button>
   </nav>
 
@@ -656,6 +723,7 @@ const BONUS_MULTIPLIER = 1000; // Rp per roti terjual, dibagi rata ke pegawai be
 
 let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 let riwayat = [];
+let pengeluaranList = [];
 
 function rp(n){
   n = Math.round(Number(n)||0);
@@ -789,6 +857,46 @@ function liveBiayaAlat(){
 }
 function liveLaba(rec){
   return rec.uangMasuk - rec.uangKeluarBahan - rec.biayaPeralatan - rec.gajiPegawai - rec.bonusTotal - liveBiayaAlat();
+}
+
+function mapExpenseToDb(e){
+  return { id: e.id, tanggal: e.tanggal, keterangan: e.keterangan, nominal: e.nominal, created_at: e.createdAt };
+}
+function mapExpenseFromDb(row){
+  return { id: row.id, tanggal: row.tanggal, keterangan: row.keterangan, nominal: Number(row.nominal)||0, createdAt: row.created_at };
+}
+
+async function refreshPengeluaran(){
+  try{
+    if(supabaseClient){
+      const {data, error} = await supabaseClient.from('pengeluaran_lain').select('*').order('tanggal', {ascending:false});
+      if(error) throw error;
+      pengeluaranList = (data||[]).map(mapExpenseFromDb);
+    } else {
+      const r = await storageGet('pengeluaran-lain', true);
+      pengeluaranList = (r && r.value) ? JSON.parse(r.value) : [];
+    }
+  }catch(e){ /* biarkan data lokal apa adanya kalau gagal ambil data terbaru */ }
+}
+async function saveExpensesRemote(newExpenses){
+  try{
+    if(supabaseClient){
+      const {error} = await supabaseClient.from('pengeluaran_lain').insert(newExpenses.map(mapExpenseToDb));
+      if(error) throw error;
+    } else {
+      await storageSet('pengeluaran-lain', JSON.stringify(pengeluaranList), true);
+    }
+  }catch(e){ console.error(e); showToast('Gagal menyimpan pengeluaran ke server'); }
+}
+async function deleteExpenseRemote(id){
+  try{
+    if(supabaseClient){
+      const {error} = await supabaseClient.from('pengeluaran_lain').delete().eq('id', id);
+      if(error) throw error;
+    } else {
+      await storageSet('pengeluaran-lain', JSON.stringify(pengeluaranList), true);
+    }
+  }catch(e){ console.error(e); showToast('Gagal menghapus pengeluaran di server'); }
 }
 
 async function refreshRiwayat(){
@@ -953,6 +1061,10 @@ async function switchView(btn){
   if(btn.dataset.view === 'riwayat'){
     await refreshRiwayat();
     renderRiwayatList();
+  }
+  if(btn.dataset.view === 'pengeluaran'){
+    await refreshPengeluaran();
+    renderPengeluaranList();
   }
   if(btn.dataset.view === 'pengaturan'){
     await refreshSettings();
@@ -1243,10 +1355,209 @@ document.getElementById('btnDownloadRekapBulanan').addEventListener('click', asy
   const bulan = document.getElementById('rekapBulan').value; // format YYYY-MM
   if(!bulan){ showToast('Pilih bulan terlebih dahulu'); return; }
   await refreshRiwayat();
+  await refreshPengeluaran();
   const records = riwayat.filter(r=>r.tanggal.startsWith(bulan)).sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
   if(records.length===0){ showToast('Tidak ada data pada bulan tersebut'); return; }
   generateMonthlyPDF(bulan, records);
 });
+
+// ---------- PENGELUARAN (biaya tak terduga, di luar Input Penjualan) ----------
+// Pengeluaran di sini TIDAK mengubah riwayat penjualan yang sudah ada.
+// Nilainya hanya dipakai untuk mengurangi "Laba Bersih" pada Rekap Bulanan,
+// sesuai bulan tanggal pengeluaran itu sendiri.
+let pengeluaranRowCount = 0;
+function addPengeluaranRow(){
+  pengeluaranRowCount++;
+  const wrap = document.getElementById('pengeluaranRows');
+  const div = document.createElement('div');
+  div.className = 'pengeluaran-row';
+  div.innerHTML = `
+    <input type="text" class="peng-keterangan" placeholder="Keterangan pengeluaran">
+    <input type="number" class="peng-nominal" placeholder="Nominal (Rp)" min="0" step="500">
+    <button type="button" class="peng-row-del">✕</button>
+  `;
+  wrap.appendChild(div);
+  div.querySelector('.peng-row-del').addEventListener('click', ()=> div.remove());
+}
+document.getElementById('btnTambahBarisPengeluaran').addEventListener('click', addPengeluaranRow);
+
+function updatePengeluaranBulanNotice(){
+  const tanggal = document.getElementById('pengeluaranTanggal').value;
+  const notice = document.getElementById('pengeluaranBulanNotice');
+  notice.textContent = tanggal
+    ? `Pengeluaran ini akan mengurangi "Laba Bersih Bulan Ini" pada Rekap Bulanan bulan ${fmtBulanID(tanggal.slice(0,7))}.`
+    : '';
+}
+document.getElementById('pengeluaranTanggal').addEventListener('change', updatePengeluaranBulanNotice);
+
+document.getElementById('btnSimpanPengeluaran').addEventListener('click', async ()=>{
+  const tanggal = document.getElementById('pengeluaranTanggal').value;
+  if(!tanggal){ showToast('Pilih tanggal terlebih dahulu'); return; }
+
+  const rows = Array.from(document.querySelectorAll('#pengeluaranRows .pengeluaran-row'));
+  const newExpenses = [];
+  rows.forEach(row=>{
+    const ket = row.querySelector('.peng-keterangan').value.trim();
+    const nom = Number(row.querySelector('.peng-nominal').value)||0;
+    if(ket && nom > 0){
+      newExpenses.push({
+        id: crypto.randomUUID(),
+        tanggal, keterangan: ket, nominal: nom,
+        createdAt: new Date().toISOString()
+      });
+    }
+  });
+  if(newExpenses.length === 0){ showToast('Isi minimal 1 pengeluaran (keterangan & nominal)'); return; }
+
+  pengeluaranList.push(...newExpenses);
+  await saveExpensesRemote(newExpenses);
+
+  document.getElementById('pengeluaranRows').innerHTML = '';
+  addPengeluaranRow();
+  renderPengeluaranList();
+  showToast(`${newExpenses.length} pengeluaran tersimpan`);
+});
+
+function renderPengeluaranAdminBar(){
+  const bar = document.getElementById('pengeluaranAdminBar');
+  if(!bar) return;
+  if(adminUnlocked){
+    bar.innerHTML = `<span style="font-size:11.5px;color:var(--positive);font-weight:700;">Mode admin aktif — bisa hapus pengeluaran</span>`;
+  }else{
+    bar.innerHTML = `<button class="btn-small" id="btnUnlockAdminPengeluaran">Masuk sebagai Admin</button>`;
+    const btn = document.getElementById('btnUnlockAdminPengeluaran');
+    if(btn) btn.addEventListener('click', ()=>{ requireAdmin(()=>{ renderPengeluaranAdminBar(); renderPengeluaranList(); }); });
+  }
+}
+function renderPengeluaranList(){
+  renderPengeluaranAdminBar();
+  const wrap = document.getElementById('pengeluaranList');
+  const sorted = [...pengeluaranList].sort((a,b)=> b.tanggal.localeCompare(a.tanggal));
+  if(sorted.length===0){
+    wrap.innerHTML = `<div class="empty-state">Belum ada pengeluaran tercatat</div>`;
+    return;
+  }
+  wrap.innerHTML = sorted.map(e=>`
+    <div class="riwayat-card">
+      <div class="rw-top">
+        <div class="rw-name">${e.keterangan}</div>
+        <div class="rw-date">${fmtDateID(e.tanggal)}</div>
+      </div>
+      <div class="rw-laba" style="color:var(--danger);">- ${rp(e.nominal)}</div>
+      ${adminUnlocked ? `
+      <div class="rw-actions">
+        <button class="btn-small" style="background:var(--danger-bg);color:var(--danger);" data-act="delpeng" data-id="${e.id}">Hapus</button>
+      </div>` : ''}
+    </div>
+  `).join('');
+
+  if(!adminUnlocked) return;
+  wrap.querySelectorAll('[data-act="delpeng"]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      requireAdmin(async ()=>{
+        if(!confirm('Hapus pengeluaran ini?')) return;
+        pengeluaranList = pengeluaranList.filter(x=>x.id!==b.dataset.id);
+        await deleteExpenseRemote(b.dataset.id);
+        renderPengeluaranList();
+        showToast('Pengeluaran dihapus');
+      });
+    });
+  });
+}
+
+document.getElementById('btnDownloadPengeluaranHarian').addEventListener('click', async ()=>{
+  const tanggal = document.getElementById('pengeluaranPdfTanggal').value;
+  if(!tanggal){ showToast('Pilih tanggal dulu'); return; }
+  await refreshPengeluaran();
+  const items = pengeluaranList.filter(e=>e.tanggal===tanggal);
+  if(items.length===0){ showToast('Tidak ada pengeluaran pada tanggal tsb'); return; }
+  generateExpenseDailyPDF(tanggal, items);
+});
+document.getElementById('btnDownloadPengeluaranBulanan').addEventListener('click', async ()=>{
+  const bulan = document.getElementById('pengeluaranRekapBulan').value;
+  if(!bulan){ showToast('Pilih bulan dulu'); return; }
+  await refreshPengeluaran();
+  const items = pengeluaranList.filter(e=>e.tanggal.startsWith(bulan)).sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
+  if(items.length===0){ showToast('Tidak ada pengeluaran pada bulan tsb'); return; }
+  generateExpenseMonthlyPDF(bulan, items);
+});
+
+function generateExpenseDailyPDF(tanggal, items){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const marginX = 18;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(18);
+  doc.text('SKANEPA BAKERY', pageW/2, 20, {align:'center'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+  doc.text('Laporan Pengeluaran Tak Terduga Harian', pageW/2, 26, {align:'center'});
+
+  doc.setDrawColor(47,93,138); doc.setLineWidth(0.6);
+  doc.line(marginX, 30, pageW-marginX, 30);
+
+  doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('Tanggal', marginX, 37);
+  doc.setFont('helvetica','normal');
+  doc.text(fmtDateID(tanggal), marginX, 42.5);
+  doc.line(marginX, 44, marginX+55, 44);
+
+  const rows = items.map(e=>[e.keterangan, rp(e.nominal)]);
+  const total = items.reduce((s,e)=>s+e.nominal,0);
+
+  doc.autoTable({
+    startY: 50,
+    head: [['Keterangan Pengeluaran','Nominal']],
+    body: rows,
+    foot: [['Total', rp(total)]],
+    theme: 'grid',
+    styles: { font:'helvetica', fontSize:9.5, cellPadding:2.6 },
+    headStyles: { fillColor:[47,93,138], textColor:255, fontStyle:'bold' },
+    footStyles: { fillColor:[251,234,233], textColor:[179,38,30], fontStyle:'bold' },
+    columnStyles: { 1: {halign:'right', cellWidth:55} },
+    margin: { left: marginX, right: marginX }
+  });
+
+  let y = doc.lastAutoTable.finalY + 26;
+  drawSignature(doc, y, pageW, marginX);
+  doc.save(`Pengeluaran-Skanepa-${tanggal}.pdf`);
+}
+
+function generateExpenseMonthlyPDF(bulan, items){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const marginX = 14;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(18);
+  doc.text('SKANEPA BAKERY', pageW/2, 18, {align:'center'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+  doc.text(`Rekap Pengeluaran Tak Terduga — ${fmtBulanID(bulan)}`, pageW/2, 24, {align:'center'});
+
+  doc.setDrawColor(47,93,138); doc.setLineWidth(0.6);
+  doc.line(marginX, 28, pageW-marginX, 28);
+
+  const rows = items.map(e=>[fmtDateID(e.tanggal).replace(' '+bulan.split('-')[0],''), e.keterangan, rp(e.nominal)]);
+  const total = items.reduce((s,e)=>s+e.nominal,0);
+
+  doc.autoTable({
+    startY: 33,
+    head: [['Tanggal','Keterangan','Nominal']],
+    body: rows,
+    foot: [['', 'Total', rp(total)]],
+    theme: 'grid',
+    styles: { font:'helvetica', fontSize:9, cellPadding:2.4 },
+    headStyles: { fillColor:[47,93,138], textColor:255, fontStyle:'bold' },
+    footStyles: { fillColor:[251,234,233], textColor:[179,38,30], fontStyle:'bold' },
+    columnStyles: { 2: {halign:'right'} },
+    margin: { left: marginX, right: marginX }
+  });
+
+  let y = doc.lastAutoTable.finalY + 26;
+  if(y > 255){ doc.addPage(); y = 30; }
+  drawSignature(doc, y, pageW, marginX);
+  doc.save(`Pengeluaran-Bulanan-Skanepa-${bulan}.pdf`);
+}
 
 function generatePDF(rec){
   const { jsPDF } = window.jspdf;
@@ -1417,6 +1728,43 @@ function generateMonthlyPDF(bulan, records){
   doc.text('TOTAL LABA BULAN INI', marginX+4, y+8);
   doc.text(rp(totalLaba), pageW-marginX-4, y+8, {align:'right'});
   doc.setTextColor(0,0,0);
+  y += 16;
+
+  // Pengeluaran tak terduga bulan yang sama (dari menu Pengeluaran) ikut
+  // memotong total laba bulan ini.
+  const pengeluaranBulanIni = pengeluaranList.filter(e=>e.tanggal.startsWith(bulan));
+  const totalPengeluaranLain = pengeluaranBulanIni.reduce((s,e)=>s+e.nominal,0);
+  const labaBersih = totalLaba - totalPengeluaranLain;
+
+  if(pengeluaranBulanIni.length > 0){
+    if(y > 250){ doc.addPage(); y = 20; }
+    const pengeluaranRows = pengeluaranBulanIni
+      .sort((a,b)=>a.tanggal.localeCompare(b.tanggal))
+      .map(e=>[fmtDateID(e.tanggal).replace(' '+bulan.split('-')[0],''), e.keterangan, rp(e.nominal)]);
+    doc.autoTable({
+      startY: y,
+      head: [['Tanggal','Pengeluaran Tak Terduga','Nominal']],
+      body: pengeluaranRows,
+      foot: [['', 'Total Pengeluaran Tak Terduga', rp(totalPengeluaranLain)]],
+      theme: 'grid',
+      styles: { font:'helvetica', fontSize:8.3, cellPadding:2 },
+      headStyles: { fillColor:[102,116,138], textColor:255, fontStyle:'bold', fontSize:8.5 },
+      footStyles: { fillColor:[251,234,233], textColor:[179,38,30], fontStyle:'bold', fontSize:8.8 },
+      columnStyles: { 2:{halign:'right'} },
+      margin: { left: marginX, right: marginX }
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  if(y > 255){ doc.addPage(); y = 20; }
+  doc.setFillColor(251,234,233);
+  doc.rect(marginX, y, pageW-marginX*2, 12, 'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(12);
+  doc.setTextColor(179,38,30);
+  doc.text('LABA BERSIH BULAN INI', marginX+4, y+8);
+  doc.text(rp(labaBersih), pageW-marginX-4, y+8, {align:'right'});
+  doc.setTextColor(0,0,0);
 
   y += 30;
   if(y > 255){ doc.addPage(); y = 30; }
@@ -1521,12 +1869,19 @@ document.getElementById('btnSaveSettings').addEventListener('click', async ()=>{
 // ---------- INIT ----------
 async function init(){
   await loadAll();
+  await refreshPengeluaran();
   populateAdminSelects();
   populateStaffSelects();
   document.getElementById('pdfTanggal').value = todayStr();
   document.getElementById('rekapBulan').value = todayStr().slice(0,7);
+  document.getElementById('pengeluaranTanggal').value = todayStr();
+  document.getElementById('pengeluaranPdfTanggal').value = todayStr();
+  document.getElementById('pengeluaranRekapBulan').value = todayStr().slice(0,7);
+  addPengeluaranRow();
+  updatePengeluaranBulanNotice();
   renderSettingsForm();
   renderRiwayatList();
+  renderPengeluaranList();
   resetInputForm();
 }
 init();
